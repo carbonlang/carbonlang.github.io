@@ -1,0 +1,2946 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Carbon Programming Language Specification - The Carbon Programming Language</title>
+<style>
+body {
+    margin: 20px;
+}
+h2 {
+    text-decoration: underline;
+}
+.ebnf {
+    background-color: #F0E68C;
+    padding: 20px;
+    width: 800px;
+}
+.grammar {
+    background-color: #F5F5F5;
+    padding: 20px;
+    width: 800px;
+}
+.code {
+    background-color: #E0EBF5;
+    padding: 20px;
+    width: 800px;
+}
+
+/* Top Button */
+#topBtn {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 30px;
+    z-index: 99;
+    border: none;
+    outline: none;
+    background-color: #696969;
+    color: white;
+    cursor: pointer;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+#topBtn:hover {
+    background-color: #555555;
+}
+</style>
+</head>
+
+<body>
+
+<h1>
+The Carbon Programming Language Specification
+</h1>
+
+<h2>Version of December 22, 2017</h2>
+
+<button onclick="topFunction()" id="topBtn" title="Go to top">Top</button>
+
+<ul>
+<li><a href="#Introduction" class="noline">Introduction</a></li>
+<li><a href="#Notation" class="noline">Notation</a></li>
+<li><a href="#Lexical_elements" class="noline">Lexical elements</a></li>
+<li><a href="#Identifiers" class="noline">Identifiers</a></li>
+<li><a href="#Literals" class="noline">Literals</a></li>
+<li><strike><a href="#Variables" class="noline">Variables</a></strike></li>
+<li><a href="#Types" class="noline">Types</a></li>
+<li><a href="#Type_qualifiers" class="noline">Type qualifiers</a></li>
+<li><a href="#Storage_class" class="noline">Storage class</a></li>
+<li><a href="#Blocks" class="noline">Blocks</a></li>
+<li><a href="#Scope" class="noline">Scope</a></li>
+<li><a href="#Declarations" class="noline">Declarations</a></li>
+<li><a href="#Expressions" class="noline">Expressions</a></li>
+<li><a href="#Statements" class="noline">Statements</a></li>
+<li><a href="#Built-in_functions" class="noline">Built-in functions</a></li>
+<li><a href="#Modules" class="noline">Modules</a></li>
+<li><a href="#Program_initialization_and_execution" class="noline">Program initialization and execution</a></li>
+<li><a href="#Errors" class="noline">Errors</a></li>
+<li><a href="#System_considerations" class="noline">System considerations</a></li>
+</ul>
+
+<h2 id="Introduction">Introduction</h2>
+<p>
+This is a reference manual for the Carbon programming language.
+</p>
+
+<p>
+Carbon is a general-purpose strongly typed language designed with systems programming in mind.
+</p>
+
+<p>
+The grammar is compact and regular, allowing for easy analysis by automatic tools such as integrated development environments.
+</p>
+
+<h2 id="Notation">Notation</h2>
+<p>
+The syntax is specified using Backus-Naur Form (EBNF):
+</p>
+
+<pre class="grammar">
+Production  = production_name "=" [ Expression ]
+Expression  = Alternative { "|" Alternative }
+Alternative = Term { Term }
+Term        = production_name | token [ "…" token ] | Group | Option | Repetition
+Group       = "(" Expression ")"
+Option      = "[" Expression "]"
+Repetition  = "{" Expression "}"
+</pre>
+
+<p>
+Productions are expressions constructed from terms and the following operators, in increasing precedence:
+</p>
+<pre class="grammar">
+|   alternation
+()  grouping
+[]  option (0 or 1 times)
+{}  repetition (0 to n times)
+</pre>
+
+<p>
+Lower-case production names are used to identify lexical tokens. Non-terminals are in CamelCase. Lexical tokens are enclosed in double quotes <code>""</code> or back quotes <code>``</code>.
+</p>
+
+<h3 id="Characters">Characters</h3>
+
+<p>
+The following terms are used to denote specific Unicode character classes:
+</p>
+<pre class="ebnf">
+<a id="newline">newline</a>    = /* the Unicode code point U+000A */
+<a id="ascii_char">ascii_char</a> = /* an ASCII character including special characters escaped by a backslash */
+</pre>
+
+<h3 id="Letters_and_digits">Letters and digits</h3>
+
+<p>
+The underscore character <code>"_"</code> is considered a letter.
+</p>
+<pre class="ebnf">
+<a id="letter">letter</a>        = "a" .. "z" | "A" .. "Z" | "_"
+<a id="decimal_digit">decimal_digit</a> = "0" .. "9"
+<a id="binary_digit">binary_digit</a>  = "0" | "1"
+<a id="octal_digit">octal_digit</a>   = "0" .. "7"
+<a id="hex_digit">hex_digit</a>     = "0" .. "9" | "A" .. "F" | "a" .. "f"
+</pre>
+
+<h2 id="Lexical_elements">Lexical elements</h2>
+
+<h3 id="Comments">Comments</h3>
+
+<p>
+Comments serve as program documentation. There are two forms:
+</p>
+
+<ol>
+<li>
+<i>Line comments</i> start with the character sequence <code>//</code> and stop at the end of the line.
+</li>
+<li>
+<i>General comments</i> start with the character sequence <code>/*</code> and stop with the first subsequent character sequence <code>*/</code>.
+</li>
+</ol>
+
+<p>
+A comment cannot start inside a <a href="#String_literals">string literal</a>. Nested comments are permitted. A general comment containing no newlines acts like a space. Any other comment acts like a newline.
+</p>
+
+<h3 id="Tokens">Tokens</h3>
+
+<p>
+Tokens form the vocabulary of the Carbon language. There are four classes: <i>identifiers</i>, <i>keywords</i>, <i>operators and punctuation</i>, and <i>literals</i>. <i>White space</i>, formed from spaces (U+0020), horizontal tabs (U+0009), carriage returns (U+000D), and newlines (U+000A) separates tokens that would otherwise combine into a single token. Also, a newline or end of file may trigger the insertion of a <a href="#Semicolons">semicolon</a>. While breaking the input into tokens, the next token is the longest sequence of characters that form a valid token.
+</p>
+
+<h3 id="Semicolons">Semicolons</h3>
+
+<p>
+The formal grammar uses semicolons <code>";"</code> as terminators in a number of productions. Carbon programs may omit most of these semicolons using the following two rules:
+</p>
+
+<ol>
+<li>
+When the input is broken into tokens, a semicolon is automatically inserted into the token stream immediately after a line's final token if that token is
+<ul>
+	<li>an
+	    <a href="#Identifiers">identifier</a>
+	</li>
+
+	<li>an
+	    <a href="#Integer_literals">integer</a>,
+	    <a href="#Floating-point_literals">floating-point</a>, or
+	    <a href="#String_literals">string</a> literal
+	</li>
+
+	<li>one of the <a href="#Keywords">keywords</a>
+	    <code>break</code>,
+	    <code>continue</code>,
+	    <code>fallthrough</code>, or
+	    <code>return</code>
+	</li>
+
+	<li>one of the <a href="#Operators_and_punctuation">operators and punctuation</a>
+	    <code>++</code>,
+	    <code>--</code>,
+	    <code>)</code>,
+	    <code>]</code>, or
+	    <code>}</code>
+	</li>
+</ul>
+</li>
+
+<li>
+To allow complex statements to occupy a single line, a semicolon may be omitted before a closing <code>")"</code> or <code>"}"</code>.
+</li>
+</ol>
+
+<h3 id="Keywords">Keywords</h3>
+
+<p>
+The following keywords are reserved and may not be used as identifiers.
+</p>
+<pre class="grammar">
+asm            assert         atomic         auto           break
+case           const          continue       def            default
+defer          do             else if        else           enum
+for            foreach        generic        goto           if
+in             module         private        protected      ptr
+public         require        restrict       return         static
+static_assert  struct         switch         type           union
+use            volatile       while          va_end         va_next
+va_start
+</pre>
+
+<h3 id="Operators_and_punctuation">Operators and punctuation</h3>
+
+<p>
+The following character sequences represent <a href="#Operators">operators</a>
+(including <a href="#assign_op">assignment operators</a>) and punctuation:
+</p>
+<pre class="grammar">
+&gt;&gt;=     &lt;&lt;=     &gt;&gt;      &lt;&lt;      ==      !=      &gt;=      &lt;=
+&amp;&amp;      ||      ++      --      +=      -=      *=      /=
+%=      &amp;=      |=      ^=      -&gt;      #{      %q      %Q
+=       +       -       *       /       %       &amp;       |
+^       @       &lt;       &gt;       (       )       {       }
+[       ]       ,       ;       :       .       ~
+</pre>
+
+<h2 id="Identifiers">Identifiers</h2>
+
+<p>
+Identifiers name program entities such as variables and types. An identifier is a sequence of one or more letters and digits. The first character in an identifier must be a letter.
+</p>
+<pre class="ebnf">
+<a id="identifier">identifier</a> = <a href="#letter" class="noline">letter</a> { <a href="#letter" class="noline">letter</a> | <a href="#decimal_digit" class="noline">decimal_digit</a> }
+</pre>
+
+<pre class="code">
+c
+_status
+long_variable
+DigitalCounter
+</pre>
+
+<p>
+Some identifiers are <a href="#Predeclared_identifiers">predeclared</a>.
+</p>
+
+<h3 id="Predeclared_identifiers">Predeclared identifiers</h3>
+
+<p>
+The following identifiers are implicitly declared in the <a href="#Blocks">universe block</a>:</p>
+<pre class="grammar">
+Types:
+    bool byte string ptr
+    int int8 int16 int32 int64
+    uint uint8 uint16 uint32 uint64
+    float32 float64
+
+Constants:
+    true false
+
+Nil value:
+    nil
+
+Functions:
+    free len new print println size
+</pre>
+
+<h3 id="Qualified_identifiers">Qualified identifiers</h3>
+
+<p>
+A qualified identifier is an identifier qualified with a module name prefix. Both the module name and the identifier must not be <a href="#Blank_identifier">blank</a>.
+</p>
+
+<pre class="ebnf">
+<a id="QualifiedIdent">QualifiedIdent</a> = <a href="#ModuleName" class="noline">ModuleName</a> "." <a href="#identifier" class="noline">identifier</a>
+</pre>
+
+<p>
+A qualified identifier accesses an identifier in a different module, which must be imported using <a href="#Require_declarations" class="noline">require</a>. The identifier must be public or protected and declared in the module block of that module.
+</p>
+
+<pre class="code">
+error.log()      // denotes the log() function in module error
+</pre>
+
+<h3 id="Blank_identifier">Blank identifier</h3>
+
+<p>
+The <i>blank identifier</i> is represented by the underscore character <code>_</code>. It serves as an anonymous placeholder instead of a regular (non-blank) identifier and has special meaning in <a href="#Declarations">declarations</a>, as an <a href="#Operands">operand</a>, and in <a href="#Assignments">assignments</a>.
+</p>
+
+
+<h3 id="Uniqueness_of_identifiers">Uniqueness of identifiers</h3>
+
+<p>
+Given a set of identifiers, an identifier is called <i>unique</i> if it is <i>different</i> from every other in the set. Two identifiers are different if they are spelled differently, or if they appear in different <a href="#Modules">module</a>. Otherwise, they are the same.
+</p>
+
+<h3 id="Exported_identifiers">Exported identifiers</h3>
+
+<p>
+An identifier may be <i>exported</i> to permit access to it from another module. An identifier is exported if it is prefixed by the keyword <code>public</code> or <code>protected</code> and is not <code>private</code>.
+</p>
+
+<p>
+All other identifiers are not exported.
+</p>
+
+<h2 id="Literals">Literals</h2>
+
+<h3 id="Integer_literals">Integer literals</h3>
+
+<p>
+An integer literal is a sequence of digits representing an <a href="#Constants">integer constant</a>. An optional prefix sets a non-decimal base: <code>2x</code> for binary, <code>8x</code> for octal, <code>16x</code> for hexadecimal.  In hexadecimal literals, letters <code>a-f</code> and <code>A-F</code> represent values 10 through 15.
+</p>
+<pre class="ebnf">
+<a id="int_lit">int_lit</a>     = <a href="#decimal_lit" class="noline">decimal_lit</a> | <a href="#binary_lit" class="noline">binary_lit</a> | <a href="#octal_lit" class="noline">octal_lit</a> | <a href="#hex_lit" class="noline">hex_lit</a>
+<a id="decimal_lit">decimal_lit</a> = ( "1" .. "9" ) { <a href="#decimal_digit" class="noline">decimal_digit</a> }
+<a id="binary_lit">binary_lit</a>  = "2x" <a href="#binary_digit" class="noline">binary_digit</a> { <a href="#binary_digit" class="noline">binary_digit</a> }
+<a id="octal_lit">octal_lit</a>   = "8x" <a href="#octal_digit" class="noline">octal_digit</a> { <a href="#octal_digit" class="noline">octal_digit</a> }
+<a id="hex_lit">hex_lit</a>     = "16x" <a href="#hex_digit" class="noline">hex_digit</a> { <a href="#hex_digit" class="noline">hex_digit</a> }
+</pre>
+
+<pre class="code">
+12
+3
+8x567
+2x01010101
+16xFFFFEEEE
+</pre>
+
+<h3 id="Floating-point_literals">Floating-point literals</h3>
+<p>
+A floating-point literal is a decimal representation of a <a href="#Constants">floating-point constant</a>. It has an integer part, a decimal point, a fractional part, and an exponent part.  The integer and fractional part comprise decimal digits and the exponent part is an <code>e</code> or <code>E</code> followed by an optionally signed decimal exponent.  One of the integer part or the fractional part may be omitted; one of the decimal point or the exponent may be omitted.
+</p>
+<pre class="ebnf">
+<a id="float_lit">float_lit</a> = <a href="#decimals" class="noline">decimals</a> "." [ <a href="#decimals" class="noline">decimals</a> ] [ <a href="#exponent" class="noline">exponent</a> ] |
+            <a href="#decimals" class="noline">decimals</a> <a href="#exponent" class="noline">exponent</a> |
+            "." <a href="#decimals" class="noline">decimals</a> [ <a href="#exponent" class="noline">exponent</a> ]
+<a id="decimals">decimals</a>  = <a href="#decimal_digit" class="noline">decimal_digit</a> { <a href="#decimal_digit" class="noline">decimal_digit</a> }
+<a id="exponent">exponent</a>  = ( "e" | "E" ) [ "+" | "-" ] <a href="#decimals" class="noline">decimals</a>
+</pre>
+
+<pre class="code">
+12.45
+045.45
+1.e+0
+4.6767e-8
+</pre>
+
+<h3 id="Character_literals">Character literals</h3>
+
+<p>
+A character literal represents a single <a href="#Constants">character constant</a> between a pair of single quotes, as in <code>'a'</code>. Backslash escapes are interpreted as special values.
+</p>
+
+<pre class="ebnf">
+<a id="character_lit">char_lit</a> = "'" <a href="#ascii_char" class="noline">ascii_char</a> "'"
+</pre>
+
+<pre class="code">
+A
+C
+\n
+\t
+</pre>
+
+<h3 id="String_literals">String literals</h3>
+
+<p>
+A string literal represents a <a href="#Constants">string constant</a> obtained from concatenating a sequence of characters. There are four forms: raw string literals, interpreted string literals, heredoc raw string literals and heredoc interpreted string literals.
+</p>
+
+<h4>Raw string literals</h4>
+
+<p>
+Raw string literals are character sequences between single back quotes or double quotes preceded by the alphabet <code>r</code>, as in <code>r`foo`</code> or <code>r&quot;foo&quot;</code>.  Within the quotes, any character may appear except the respective quotes. The value of a raw string literal is the string composed of the uninterpreted characters between the quotes; in particular, backslashes have no special meaning, variables are not expanded, unicode escape sequence <code>\u{}</code> is not processed and there is no language specific interpretation.
+</p>
+
+<h4>Interpreted string literals</h4>
+
+<p>
+Interpreted string literals are character sequences between single back quotes or double quotes, as in <code>`foo`</code> or <code>&quot;bar&quot;</code>. Within the quotes, any character may appear except unescaped back quote or double quote. The text between the quotes forms the value of the literal, with backslash escapes interpreted as special values, variables expanded and unicode escape sequence <code>\u{}</code> are processed.
+</p>
+
+<h4>Heredoc raw string literals</h4>
+
+<p>
+Heredoc raw string literals are character sequences between three back quotes or double quotes preceded by the alphabet <code>r</code>, as in <code>r```foo```</code> or <code>r&quot;&quot;&quot;bar&quot;&quot;&quot;</code>.  Within the quotes, any character may appear except three respective quotes by itself on a separate line unless escaped by a <code>\</code>. The value of a raw string literal is the string composed of the uninterpreted characters between the quotes; in particular, backslashes have no special meaning, variables are not expanded, unicode escape sequence <code>\u{}</code> is not processed and there is no language specific interpretation. The string can span multiple lines. The opening and closing quotes should on a separate line. The string starts from after the line containing the opening quotes and ends at the line before the line containing closing quotes. Blank spaces after the opening quotes on the same line and before the closing quotes on the same line are ignore.
+</p>
+
+<h4>Heredoc interpreted string literals</h4>
+
+<p>
+Heredoc interpreted string literals are character sequences between three back quotes or double quotes, as in <code>```foo```</code> or <code>&quot;&quot;&quot;bar&quot;&quot;&quot;</code>. Within the quotes, any character may appear except three respective quotes by itself on a separate line unless escaped by a <code>\</code>. The text between the quotes forms the value of the literal, with backslash escapes interpreted as special values. The string can span multiple lines. The opening and closing quotes should on a separate line. The string starts from after the line containing the opening quotes and ends at the line before the line containing closing quotes. Blank spaces after the opening quotes on the same line and before the closing quotes on the same line are ignore.
+</p>
+
+<pre class="ebnf">
+<a id="string_lit">string_lit</a>                     = <a href="#raw_string_lit" class="noline">raw_string_lit</a> | <a href="#interpreted_string_lit" class="noline">interpreted_string_lit</a> |
+                                 <a href="#heredoc_raw_string_lit" class="noline">heredoc_raw_string_lit</a> | <a href="#heredoc_interpreted_string_lit" class="noline">heredoc_interpreted_string_lit</a> 
+<a id="raw_string_lit">raw_string_lit</a>                 = "r" "`" { <a href="#ascii_char" class="noline">ascii_char</a> } "`" | "r" `"` { <a href="#ascii_char" class="noline">ascii_char</a> } `"`
+<a id="interpreted_string_lit">interpreted_string_lit</a>         = "`" { <a href="#ascii_char" class="noline">ascii_char</a> } "`" | `"` { <a href="#ascii_char" class="noline">ascii_char</a> } `"`
+<a id="heredoc_raw_string_lit">heredoc_raw_string_lit</a>         = "```" { <a href="#ascii_char" class="noline">ascii_char</a> } "```"
+<a id="heredoc_interpreted_string_lit">heredoc_interpreted_string_lit</a> = `"""` { <a href="#ascii_char" class="noline">ascii_char</a> } `"""`
+</pre>
+
+<p>
+Backslash escaped special values are:
+</p>
+
+<pre class="grammar">
+\a   U+0007 alert or bell
+\b   U+0008 backspace
+\f   U+000C form feed
+\n   U+000A line feed or newline
+\r   U+000D carriage return
+\t   U+0009 horizontal tab
+\v   U+000b vertical tab
+\\   U+005c backslash
+\"   U+0022 double quote
+</pre>
+
+<pre class="code">
+"The brown fox quickly hides behind the bushes."
+'The sun rises.'
+
+"""
+This is a very long string
+that spans multiple
+lines.
+"""
+</pre>
+
+<strike>
+<h2 id="Variables">Variables ???</h2>
+
+<p>
+A variable is a storage location for holding a <i>value</i>. The set of permissible values is determined by the variable's <i><a href="#Types">type</a></i>.
+</p>
+
+<p>
+A <a href="#Variable_declarations">variable declaration</a> or, for function parameters and results, the signature of a <a href="#Function_declarations">function declaration</a> or <a href="#Function_literals">function literal</a> reserves storage for a named variable.
+</p>
+
+<p>
+Calling the built-in function <a href="#Memory_allocation_type"><code>new</code></a>, <a href="#Memory_allocation_size"><code>alloc</code></a> or <a href="#Memory_allocation_size"><code>calloc</code></a> allocates storage for a variable at run time. Such an anonymous variable is referred to via a (possibly implicit) <a href="#Address_operators">pointer indirection</a>.
+</p>
+
+<p>
+<i>Structured</i> variables of <a href="#Array_types">array</a>, <a href="#Struct_types">struct</a> and <a href="#Union_types">union</a> types have elements and fields that may be <a href="#Address_operators">addressed</a> individually. Each such element acts like a variable.
+</p>
+
+<p>
+The <i>type</i> of a variable is the type given in its declaration, the type provided in the <code>new</code> call.
+</p>
+
+<p>
+A variable's value is retrieved by referring to the variable in an <a href="#Expressions">expression</a>; it is the most recent value <a href="#Assignments">assigned</a> to the variable. If a variable has not yet been assigned a value, its value is a random (uninitialized) value for its type.
+</p>
+</strike>
+
+<h2 id="Types">Types</h2>
+
+<p>
+A type determines a set of values together with operations specific to those values. A type may be denoted by a basic type, <i>type name</i>, if it has one, or specified using a <i>type literal</i>, which composes a type from existing types.
+</p>
+
+<pre class="ebnf">
+<a id="Type">Type</a>      = <a href="#BasicType" class="noline">BasicType</a> | <a href="#TypeLit" class="noline">TypeLit</a> | <a href="#TypeName" class="noline">TypeName</a>
+<a id="BasicType">BasicType</a> = <a href="#BooleanType" class="noline">BooleanType</a> | <a href="#NumericType" class="noline">NumericType</a> | <a href="#StringType" class="noline">StringType</a>
+<a id="TypeLit">TypeLit</a>   = <a href="#ArrayType" class="noline">ArrayType</a> | <a href="#StructType" class="noline">StructType</a> | <a href="#UnionType" class="noline">UnionType</a> | <a href="#EnumType" class="noline">EnumType</a>  | <a href="#PointerType" class="noline">PointerType</a> | <a href="#FunctionType" class="noline">FunctionType</a>
+<a id="TypeName">TypeName</a>  = <a href="#identifier" class="noline">identifier</a> | <a href="#QualifiedIdent" class="noline">QualifiedIdent</a>
+</pre>
+
+<p>
+Boolean, numeric, character and string types are <a href="#Predeclared_identifiers">predeclared</a>. <i>Composite types</i> of array, struct, union, enum, pointer and function types may be constructed using type literals. Other named types are introduced with <a href="#Type_declarations">type declarations</a>.
+</p>
+
+<h3 id="Boolean_types">Boolean types</h3>
+
+<p>
+A <i>boolean type</i> represents the set of Boolean truth values denoted by the predeclared constants <code>true</code> and <code>false</code>. The predeclared boolean type is <code>bool</code>.
+</p>
+
+<pre class="ebnf">
+<a id="BooleanType">BooleanType</a> = "bool"
+</pre>
+
+<pre class="code">
+bool status
+</pre>
+
+<h3 id="Numeric_types">Numeric types</h3>
+
+<p>
+A <i>numeric type</i> represents sets of integer or floating-point values.
+</p>
+
+<pre class="ebnf">
+<a id="NumericType">NumericType</a>  = <a href="#IntegerType" class="noline">IntegerType</a> | <a href="#FloatingType" class="noline">FloatingType</a>
+<a id="IntegerType">IntegerType</a>  = "uint8" | "uint16" | "uint32" | "uint64" |
+               "int8" | "int16" | "int32" | "int64" |
+               "byte" | "int" | "uint"
+<a id="FloatingType">FloatingType</a> = "float32" | "float64"
+</pre>
+
+<p>
+The predeclared architecture-independent numeric types are:
+</p>
+
+<pre class="grammar">
+uint8       the set of all unsigned  8-bit integers (0 to 255)
+uint16      the set of all unsigned 16-bit integers (0 to 65535)
+uint32      the set of all unsigned 32-bit integers (0 to 4294967295)
+uint64      the set of all unsigned 64-bit integers (0 to 18446744073709551615)
+
+int8        the set of all signed  8-bit integers (-128 to 127)
+int16       the set of all signed 16-bit integers (-32768 to 32767)
+int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
+int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
+
+byte        alias of uint8
+
+float32     the set of all IEEE-754 32-bit floating-point numbers
+float64     the set of all IEEE-754 64-bit floating-point numbers
+</pre>
+
+<p>
+The value of an <i>n</i>-bit integer is <i>n</i> bits wide and represented using <a href="https://en.wikipedia.org/wiki/Two's_complement">two's complement arithmetic</a>.
+</p>
+
+<p>
+There is also a set of predeclared integer types with implementation-specific sizes:
+</p>
+
+<pre class="grammar">
+uint     either 32 or 64 bits
+int      same size as uint
+</pre>
+
+<p>
+To avoid portability issues all numeric types are distinct. Conversions are required when different numeric types are mixed in an expression or assignment. For instance <code>int32</code> and <code>int</code> are not the same type even though they may have the same size on a particular architecture.
+</p>
+
+<pre class="code">
+int32 i
+float32 f
+byte flag
+</pre>
+
+<h3 id="String_types">String types</h3>
+
+<p>
+A <i>string type</i> represents the set of string values. A string value is a (possibly empty) sequence of bytes. Strings are immutable: once created, it is impossible to change the contents of a string. The predeclared string type is <code>string</code>.
+</p>
+
+<p>
+The length of a string <code>s</code> (its size in bytes) can be discovered using the built-in function <a href="#Length"><code>len</code></a>. The length is a compile-time constant if the string is a constant. A string's bytes can be accessed by integer <a href="#Index_expressions">indices</a> 0 through <code>len(s)-1</code>.
+</p>
+
+<pre class="ebnf">
+<a id="StringType">StringType</a> = "string"
+</pre>
+
+<pre class="code">
+string s
+</pre>
+
+<h3 id="Array_types">Array types</h3>
+
+<p>
+An array is a numbered sequence of elements of a single type, called the element type. The number of elements is called the length and is never negative.
+</p>
+
+<pre class="ebnf">
+<a id="ArrayType">ArrayType</a>   = <a href="#ElementType" class="noline">ElementType</a> "[" <a href="#ArrayLength" class="noline">ArrayLength</a> "]"
+<a id="ArrayLength">ArrayLength</a> = <a href="#Expression" class="noline">Expression</a>
+<a id="ElementType">ElementType</a> = <a href="#Type" class="noline">Type</a>
+</pre>
+
+<p>
+The length is part of the array's type; it must evaluate to a non-negative <a href="#Constants">constant</a> representable by a value of type <code>int</code>. The length of array <code>a</code> can be discovered using the built-in function <a href="#Length"><code>len</code></a>. The elements can be addressed by integer <a href="#Index_expressions">indices</a> 0 through <code>len(a)-1</code>. Array types may be composed to form multi-dimensional types.
+</p>
+
+<pre class="code">
+int[100] ar1
+string[200] ar2
+</pre>
+
+<h3 id="Struct_types">Struct types</h3>
+
+<p>
+A struct is a sequence of named elements, called fields, each of which has a name and a type. Field names are specified explicitly (IdentifierList). Within a struct, non-<a href="#Blank_identifier">blank</a> field names must be <a href="#Uniqueness_of_identifiers">unique</a>.
+</p>
+
+<p>
+To declare an element of struct of <a href="#IntegerType" class="noline">integer</a> type having explicit width, in bits, use a colon after the identifier followed by the size in bits. Adjacent bit field members may be packed to share and straddle the individual bytes.
+</p>
+
+<pre class="ebnf">
+<a id="StructType">StructType</a>     = "type" "struct" { <a href="#FieldDecl" class="noline">FieldDecl</a> ";" }
+<a id="FieldDecl">FieldDecl</a>      = <a href="#Type" class="noline">Type</a> <a href="#IdentifierList" class="noline">IdentifierList</a> [ ":" <a href="#decimal_lit" class="noline">decimal_lit</a> ]
+<a id="IdentifierList">IdentifierList</a> = <a href="#identifier" class="noline">identifier</a> { "," <a href="#identifier" class="noline">identifier</a> }
+</pre>
+
+<pre class="code">
+type struct Person
+	string name
+	int age
+	string address
+</pre>
+
+<h3 id="Union_types">Union types</h3>
+
+<p>
+A union is a sequence of named elements, called fields, each of which has a name and a type and shares the same memory location of the largest type in the union. Field names are specified explicitly (IdentifierList). Within a union, non-<a href="#Blank_identifier">blank</a> field names must be <a href="#Uniqueness_of_identifiers">unique</a>.
+</p>
+
+<p>
+To declare an element of union of <a href="#IntegerType" class="noline">integer</a> type having explicit width, in bits, use a colon after the identifier followed by the size in bits. Adjacent bit field members may be packed to share and straddle the individual bytes.
+</p>
+
+<pre class="ebnf">
+<a id="UnionType">UnionType</a> = "type" "union" { <a href="#FieldDecl" class="noline">FieldDecl</a> ";" }
+</pre>
+
+<pre class="code">
+type union IPData
+	int i
+	float32 f
+	char c
+</pre>
+
+<h3 id="Enum_types">Enum types</h3>
+
+<p>
+A enum is a sequence of named elements, called enumerators, each of which has a distinct name. Within a enum, non-<a href="#Blank_identifier">blank</a> field names must be <a href="#Uniqueness_of_identifiers">unique</a>.
+</p>
+
+<p>
+The first enumerator has the default value 0, and the value of each successive enumerator is increased by 1. Initializers can be used to override the default values of the enumerator.
+</p>
+
+<p>
+A enum has an underlying type, which can be any <a href="#IntegerType" class="noline">integer</a> type. The default underlying type of enumeration elements is int. To declare an enum of another integral type, use a colon after the identifier followed by the type.
+</p>
+
+<pre class="ebnf">
+<a id="EnumType">EnumType</a>      = "type" "enum" [ : <a href="#IntegerType" class="noline">IntegerType</a> ] { <a href="#FieldDecl" class="noline">EnumratorList</a> ";" }
+<a id="EnumratorList">EnumratorList</a> = <a href="#identifier" class="noline">identifier</a> [ " = " <a href="#decimal_lit" class="noline">decimal_lit</a> ] { "," <a href="#identifier" class="noline">identifier</a> [ " = " <a href="#decimal_lit" class="noline">decimal_lit</a> ] }
+</pre>
+
+<pre class="code">
+type enum Weekdays : long
+	Monday
+	Tuesday
+	Wednesday
+</pre>
+
+<h3 id="Pointer_types">Pointer types</h3>
+
+<p>
+A pointer type denotes the set of all pointers to <a href="#Variables">variables</a> of a given type, called the <i>base type</i> of the pointer. The value of an uninitialized pointer is <code>nil</code>.
+</p>
+
+<pre class="ebnf">
+<a id="PointerType">PointerType</a> = "ptr"
+</pre>
+
+<pre class="code">
+ptr x : int
+</pre>
+
+<h3 id="Function_types">Function types</h3>
+
+<p>
+A function type denotes the set of all functions with the same parameter and result types. The value of an uninitialized variable of function type is <code>nil</code>.
+</p>
+
+<pre class="ebnf">
+<a id="FunctionType">FunctionType</a>  = <a href="#Signature" class="noline">Signature</a>
+<a id="Signature">Signature</a>     = <a href="#Parameters" class="noline">Parameters</a> "->" <a href="#Result" class="noline">Result</a>
+<a id="Result">Result</a>        = "(" <a href="#Parameters" class="noline">Parameters</a> ")"
+<a id="Parameters">Parameters</a>    = "(" [ <a href="#ParameterList" class="noline">ParameterList</a> ] [ "," "..." ] ")"
+<a id="ParameterList">ParameterList</a> = <a href="#ParameterDecl" class="noline">ParameterDecl</a> { "," <a href="#ParameterDecl" class="noline">ParameterDecl</a> }
+<a id="ParameterDecl">ParameterDecl</a> = <a href="#Type" class="noline">Type</a> [ <a href="#IdentifierList" class="noline">IdentifierList</a> ]
+</pre>
+
+<p>
+Within a list of parameters or results, the names (IdentifierList) must either all be present or all be absent. If present, each name stands for one item (parameter or result) of the specified type and all non-<a href="#Blank_identifier">blank</a> names in the signature must be <a href="#Uniqueness_of_identifiers">unique</a>. If absent, each type stands for one item of that type. Parameter and result lists are always parenthesized.
+</p>
+
+<pre class="code">
+def delay() -> ()                   // function type is () -> ()
+	return                      // function doesn't take any parameters or return any result
+
+def calc(int x, int y) -> (bool)    // function type is (int, int) -> (bool)
+	return x > y
+
+ptr fnptr : (int, int) -> (bool)    // pointer to function of type (int, int) -> (bool)
+fnptr = calc                        // name of the function is pointer to that function
+</pre>
+
+<p>
+Parenthesis are required for both the function parameters and result even if the function does not take any parameters or does not return any result.
+</p>
+
+<h3 id="Properties_of_types_and_values">Properties of types and values</h3>
+
+<h4 id="Type_identity">Type identity</h4>
+
+<p>
+Two types are either <i>identical</i> or <i>different</i>.
+</p>
+
+<p>
+A <a href="#Type_definitions">defined type</a> is always different from any other type. Otherwise, two types are identical if their <a href="#Types">underlying</a> type literals are structurally equivalent; that is, they have the same literal structure and corresponding components have identical types. In detail:
+</p>
+
+<ul>
+	<li>Two array types are identical if they have identical element types and the same array length.</li>
+
+	<li>Two struct types are identical if they have the same sequence of fields, and if corresponding fields have the same names, and identical types.</li>
+
+	<li>Two union types are identical if they have the same sequence of fields, and if corresponding fields have the same names, and identical types.</li>
+
+	<li>Two pointer types are identical if they have identical base types.</li>
+
+	<li>Two function types are identical if they have the same number of parameters and result values, corresponding parameter and result types are identical, and either both functions are variadic or neither is. Parameter and result names are not required to match.</li>
+</ul>
+
+<h4 id="Assignability">Assignability</h4>
+
+<p>
+A value <code>x</code> is <i>assignable</i> to a <a href="#Variables">variable</a> of type <code>T</code> ("<code>x</code> is assignable to <code>T</code>") in any of these cases:
+</p>
+
+<ul>
+<li>
+<code>x</code>'s type is identical to <code>T</code>.
+</li>
+<li>
+<code>x</code>'s type <code>V</code> and <code>T</code> have identical <a href="#Types">underlying types</a> and at least one of <code>V</code> or <code>T</code> is not a <a href="#Type_definitions">defined</a> type.
+</li>
+<li>
+<code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code> is a pointer, function type.
+</li>
+</ul>
+
+<h2 id="Type_qualifiers">Type qualifiers</h2>
+
+<p>
+A type qualifier is a keyword that is applied to a type, resulting in a qualified type. Type qualifiers are a way of expressing additional information about a value through the type system, and ensuring correctness in the use of the data.
+</p>
+
+<p>
+There are four type qualifiers namely <code>const</code>, <code>volatile</code> and <code>distinct</code>.
+<p>
+
+<p>
+For example, <code>const int</code> is a qualified type representing a constant integer, while <code>int</code> is the corresponding unqualified type, simply an integer.
+</p>
+
+<pre class="code">
+const int x = 100
+const ptr y : int = &x
+volatile int c
+distinct ptr ptr_from : char
+</pre>
+
+<h3 id="Const_type_qualifier">Const type qualifier</h3>
+
+<p>
+The <code>const</code> qualifier const can be applied to the declaration of any variable to specify that its value will not be changed.
+<p>
+
+<pre class="code">
+const float32 pi = 3.14
+</pre>
+
+<p>
+In case of const and pointers, the following three cases are possible.
+</p>
+
+<h4 id="Pointer_to_constant">Pointer to constant</h4>
+
+<p>
+The pointer can be changed to point to any other variable of the same type, but cannot change value it is pointed to. The pointer is stored in read-write area but the variable that it points to may be in read only or read write area.
+</p>
+
+<pre class="code">
+int a = 10
+int b = 20
+ptr i : const int = &a        // pointer to constant
+i = &b                        // allowed
+*i = 30                       // not allowed
+</pre>
+
+<h4 id="Constant_pointer_to_a_variable">Constant pointer to a variable</h4>
+
+<p>
+The value of variable pointed by pointer can be changed, but cannot change the pointer to point to another variable. The pointer is stored in read-only area but the variable that it points to may be in read only or read write area.
+</p>
+
+<pre class="code">
+int a = 10
+int b = 20
+const ptr i : int = &a        // constant pointer to a variable
+i = &b                        // not allowed
+*i = 30                       // allowed
+</pre>
+
+<h4 id="Constant_pointer_to_a_constant">Constant pointer to a constant</h4>
+
+<p>
+The value pointed by pointer cannot be changed and also the pointer cannot point to any other variable. The pointer is stored in read-only area but the variable that it points to may be in read only or read write area.
+</p>
+
+<pre class="code">
+int a = 10
+int b = 20
+const ptr i : const int = &a   // constant pointer to a constant
+i = &b                         // not allowed
+*i = 30                        // not allowed
+</pre>
+
+<h3 id="Volatile_type_qualifier">Volatile type qualifier</h3>
+
+<p>
+The <code>volatile</code> type qualifier indicates that a value of the variable may change between different accesses, even if it does not appear to be modified. It prevents the compiler from optimizing away subsequent reads or writes and thus incorrectly reusing a stale value or omitting write.
+</p>
+
+<p>
+Operations on volatile variables are not atomic, hence it usage as a portable synchronization mechanism is discouraged.
+</p>
+
+<pre class="code">
+ptr p_reg : volatile uint8
+p_reg = (ptr : uint8)0x1234
+while *p_reg == 0           // read the value from the memory on every loop
+	serial.write(1)
+</pre>
+
+<h3 id="Distinct_type_qualifier">Distinct type qualifier</h3>
+
+<p>
+The <code>distinct</code> keyword is used in pointer declaration as a type qualifier for pointers. It says that for the lifetime of the pointer, only the pointer itself or a value directly derived from it (such as pointer + 1) will be used to access the object to which it points. This limits the effects of pointer aliasing, aiding optimizations.
+</p>
+
+<pre class="code">
+def main() -> (int)
+	int x, y, z = 10, 20, 30
+	ptr r : distinct int = @z
+	// since r is distinct pointer, compiler will not reload the value pointed to by it
+	x += *r
+	y += *r
+	return 0
+</pre>
+
+<h2 id="Storage_class">Storage class</h2>
+
+<p>
+Storage classes are used to describe about the features including the scope, visibility and life-time of a particular variable.
+<p>
+
+<p>
+There is only one storage classes namely <code>static</code>.
+<p>
+
+<h3 id="Static_storage_class">Static storage class</h3>
+
+<p>
+The <code>static</code> storage class is used to declare static variables which preserve their value even after they are our of scope. Static variables once initialized exists till the termination of the program but their scope is local to the function to which they are declared.
+</p>
+
+<pre class="code">
+def inc()
+	static int count = 10    // value of count is preserved even on function exit
+	count++
+  
+def main() -> int
+	inc()    // value of count is 11 after the function returns
+	inc()    // value of count is 12 after the function returns
+	return 0;
+</pre>
+
+<p>
+The <code>static</code> keyword should appear before any <a href="#Type_qualifiers">type qualifiers</a> are used in the variable declaration.
+<p>
+
+<h2 id="Blocks">Blocks ???</h2>
+
+<p>
+A <i>block</i> is a possibly empty sequence of declarations and statements within the <code>&lt;BB&gt;</code> and <code>&lt;EB&gt;</code> which are automatically inserted by the Carbon lexer.
+</p>
+
+<pre class="ebnf">
+<a id="Block">Block</a>         = "&lt;BB&gt;" <a href="#StatementList" class="noline">StatementList</a> "&lt;EB&gt;"
+<a id="StatementList">StatementList</a> = { <a href="#Statement" class="noline">Statement</a> ";" }
+</pre>
+
+<p>
+In addition to explicit blocks in the source code, there are implicit blocks:
+</p>
+
+<ol>
+	<li>The <i>universe block</i> encompasses all Carbon source text.</li>
+
+	<li>Each <a href="#Modules">module</a> has a <i>module block</i> containing all Carbon source text for that module.</li>
+
+	<li>Each file has a <i>file block</i> containing all Carbon source text in that file.</li>
+
+	<li>Each <a href="#If_statements">"if"</a>,
+	    <a href="#For_statements">"for"</a>,
+		<a href="#While_statements">"while"</a>,
+		<a href="#Do_While_statements">"do-while"</a>,
+		<a href="#Defer_statements">"defer"</a>, and
+	    <a href="#Switch_statements">"switch"</a>
+	    statement is considered to be in its own implicit block.</li>
+
+	<li>Each clause in a <a href="#Switch_statements">"switch"</a>
+	    acts as an implicit block.</li>
+</ol>
+
+<p>
+Blocks nest and influence <a href="#Scope">scoping</a>.
+</p>
+
+<h2 id="Scope">Scope ???</h2>
+
+<p>
+The <i>scope</i> of a declared identifier is the extent of source text in which the identifier denotes the specified constant, type, variable, function, label, or module.
+</p>
+
+<p>
+Carbon is lexically scoped using <a href="#Blocks">blocks</a>:
+</p>
+
+<ol>
+	<li>The scope of a <a href="#Predeclared_identifiers">predeclared identifier</a> is the universe block.</li>
+
+	<li>The scope of an identifier denoting a variable, constant, type, or function declared at top level (outside any function) is the module or file block.</li>
+
+	<li>The scope of the module name of an imported module is the file block of the file containing the import declaration.</li>
+
+	<li>The scope of an identifier denoting a function parameter or result variable is the function body.</li>
+
+	<li>The scope of a constant or variable identifier declared inside a function begins at the end of the ConstSpec or VarSpec and ends at the end of the innermost containing block.</li>
+
+	<li>The scope of a type identifier declared inside a function begins at the identifier in the TypeSpec and ends at the end of the innermost containing block.</li>
+</ol>
+
+<p>
+An identifier declared in a block may be redeclared in an inner block. While the identifier of the inner declaration is in scope, it denotes the entity declared by the inner declaration.
+</p>
+
+<p>
+The <a href="#Package_clause">package clause</a> is not a declaration; the package name does not appear in any scope. Its purpose is to identify the files belonging to the same <a href="#Modules">module</a> and to specify the default package name for import declarations.???
+</p>
+
+<h2 id="Declarations">Declarations</h2>
+
+<p>
+A <i>declaration</i> binds a non-<a href="#Blank_identifier">blank</a> identifier to a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Type_declarations">type</a>,
+<a href="#Variable_declarations">variable</a>,
+<a href="#Function_declarations">function</a>,
+<a href="#Labeled_statements">label</a>, or
+<a href="#Modules">module</a>.
+Every identifier in a program must be declared. No identifier may be declared twice in the same block, and no identifier may be declared in both the file and module block ???.
+</p>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> may be used like any other identifier in a declaration, but it does not introduce a binding and thus is not declared. In the module block, the identifier <code>init</code> may only be used for <a href="#Module_initialization"><code>init</code> function</a> declarations, and like the blank identifier it does not introduce a new binding.
+</p>
+
+<pre class="ebnf">
+<a id="TopLevelDecl">TopLevelDecl</a> = <a href="#Declaration" class="noline">Declaration</a> | <a href="#FunctionDecl" class="noline">FunctionDecl</a>
+<a id="Declaration">Declaration</a>  = <a href="#ConstDecl" class="noline">ConstDecl</a> | <a href="#TypeDecl" class="noline">TypeDecl</a> | <a href="#VarDecl" class="noline">VarDecl</a>
+</pre>
+
+<h3 id="Constant_declarations">Constant declarations</h3>
+
+<p>
+A constant declaration binds a identifier (the names of the constants) to the values of a <a href="#Constant_expressions">constant expression</a>.
+</p>
+
+<pre class="ebnf">
+<a id="ConstDecl">ConstDecl</a> = "const" <a href="#ConstSpec" class="noline">ConstSpec</a>
+<a id="ConstSpec">ConstSpec</a> = <a href="#Type" class="noline">Type</a> <a href="#identifier" class="noline">identifier</a> "=" <a href="#Expression" class="noline">Expression</a>
+</pre>
+
+<p>
+Constant expressions may contain only <a href="#Constants">constant</a> operands and are evaluated at compile time.
+</p>
+
+<p>
+The divisor of a constant division or remainder operation must not be zero:
+</p>
+
+<pre class="code">
+const int i = 100
+const float pi = 22 / 7
+const float illegal = 3.14 / 0.0   // illegal: division by zero
+</pre>
+
+<h3 id="Type_declarations">Type declarations</h3>
+
+<p>
+A type declaration binds an identifier, the <i>type name</i>, to a <a href="#Types">type</a>.
+</p>
+
+<pre class="ebnf">
+<a id="TypeDecl">TypeDecl</a> = "type" <a href="#TypeSpec" class="noline">TypeSpec</a>
+<a id="TypeSpec">TypeSpec</a> = <a href="#identifier" class="noline">identifier</a> "=" <a href="#Type" class="noline">Type</a>
+</pre>
+
+<p>
+Within the <a href="#Scope">scope</a> of the identifier, it serves as an <i>alias</i> for the type.
+</p>
+
+<pre class="code">
+type integer = int32
+type flag = int
+</pre>
+
+<h3 id="Variable_declarations">Variable declarations</h3>
+
+<p>
+A variable declaration creates one or more <a href="#Variables">variables</a>, binds corresponding identifiers to them, and gives each a type and an optional initial value.
+</p>
+
+<pre class="ebnf">
+<a id="VarDecl">VarDecl</a>        = <a href="#VarSpec" class="noline">VarSpec</a>
+<a id="VarSpec">VarSpec</a>        = <a href="#Type" class="noline">Type</a> <a href="#IdentifierList" class="noline">IdentifierList</a> [ "=" <a href="#ExpressionList" class="noline">ExpressionList</a> ]
+<a id="ExpressionList">ExpressionList</a> = <a href="#Expression" class="noline">Expression</a> { "," <a href="#Expression" class="noline">Expression</a> }
+</pre>
+
+<p>
+If a list of expressions is given, the variables are initialized with the expressions following the rules for <a href="#Assignments">assignments</a>. Otherwise, each variable is initialized to undefined random value.
+</p>
+
+<p>
+The predeclared value <code>nil</code> can be used to initialize a variable with <a href="#Pointer_types">pointer</a> type.
+</p>
+
+<pre class="code">
+int c = 0
+int x, y, z = 1, 2, 3
+int x, y, z = 1, 2    // illegal since number of parameters on the right are not equal to the left
+float f
+int[10] ar
+ptr x : int = nil
+</pre>
+
+<h3 id="Function_declarations">Function declarations</h3>
+
+<p>
+A function declaration binds an identifier, the <i>function name</i>, to a function.
+</p>
+
+<pre class="ebnf">
+<a id="FunctionDecl">FunctionDecl</a> = "def" <a href="#FunctionName" class="noline">FunctionName</a> ( <a href="#Function" class="noline">Function</a> | <a href="#Signature" class="noline">Signature</a> )
+<a id="FunctionName">FunctionName</a> = <a href="#identifier" class="noline">identifier</a>
+<a id="Function">Function</a>     = <a href="#Signature" class="noline">Signature</a> <a href="#FunctionBody" class="noline">FunctionBody</a>
+<a id="FunctionBody">FunctionBody</a> = <a href="#Block" class="noline">Block</a>
+</pre>
+
+<p>
+If the function's <a href="#Function_types">signature</a> has atleast one result parameters, each path in the function body must end in a <a href="#Return_statements">return statement</a>.
+</p>
+
+<p>
+A function declaration may omit the body. Such a declaration provides the signature for a function implemented outside Carbon, such as an assembly routine.???
+</p>
+
+<pre class="code">
+def calc(int x, int y) -> (int z)
+	z = x + y
+	return z
+</pre>
+
+<h2 id="Expressions">Expressions</h2>
+
+<p>
+An expression specifies the computation of a value by applying operators and functions to operands.
+</p>
+
+<h3 id="Operands">Operands</h3>
+
+<p>
+Operands denote the elementary values in an expression. An operand may be a 
+literal, a (possibly <a href="#Qualified_identifiers">qualified</a>)
+non-<a href="#Blank_identifier">blank</a> identifier denoting a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Variable_declarations">variable</a>,
+<a href="#Function_declarations">function</a>
+or a parenthesized expression.
+</p>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> may appear as an
+operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
+</p>
+
+<pre class="ebnf">
+<a id="Operand">Operand</a>      = <a href="#Literal" class="noline">Literal</a> | <a href="#OperandIdent" class="noline">OperandIdent</a> | "(" <a href="#Expression" class="noline">Expression</a> ")"
+<a id="Literal">Literal</a>      = <a href="#BasicLit" class="noline">BasicLit</a> | <a href="#CompositeLit" class="noline">CompositeLit</a> | <a href="#FunctionLit" class="noline">FunctionLit</a>
+<a id="BasicLit">BasicLit</a>     = <a href="#int_lit" class="noline">int_lit</a> | <a href="#float_lit" class="noline">float_lit</a> | <a href="#character_lit" class="noline">char_lit</a> | <a href="#string_lit" class="noline">string_lit</a>
+<a id="OperandIdent">OperandIdent</a> = <a href="#identifier" class="noline">identifier</a> | <a href="#QualifiedIdent" class="noline">QualifiedIdent</a>
+</pre>
+
+<h3 id="Composite_literals">Composite literals</h3>
+
+<p>
+Composite literals construct values for arrays, structs and unions. The syntax consists of brace-bound list of elements where each element may optionally be preceded by a corresponding key.
+</p>
+
+<p>
+The literal's underlying type must be specified only when <a href="#Address_operators">taking the address</a> of a composite literal which generates a pointer to a unique variable initialized with the literal's value.
+</p>
+
+<pre class="ebnf">
+<a id="CompositeLit">CompositeLit</a>  = [ "@" <a href="#LiteralType" class="noline">LiteralType</a> ] <a href="#LiteralValue" class="noline">LiteralValue</a>
+<a id="LiteralType">LiteralType</a>   = "(" <a href="#Type" class="noline">Type</a> ")"
+<a id="LiteralValue">LiteralValue</a>  = "{" [ <a href="#ElementList" class="noline">ElementList</a> ] "}"
+<a id="ElementList">ElementList</a>   = <a href="#KeyedElement" class="noline">KeyedElement</a> { "," <a href="#KeyedElement" class="noline">KeyedElement</a> }
+<a id="KeyedElement">KeyedElement</a>  = [ <a href="#FieldName" class="noline">FieldName</a> ":" ] <a href="#Element" class="noline">Element</a>
+<a id="FieldName">FieldName</a>     = <a href="#identifier" class="noline">identifier</a>
+<a id="Element">Element</a>       = <a href="#Expression" class="noline">Expression</a> | <a href="#LiteralValue" class="noline">LiteralValue</a>
+</pre>
+
+<p>
+The types of the elements and keys must be <a href="#Assignability">assignable</a> to the respective field, element, and key types of the literal type; there is no additional conversion. The key is interpreted as a field name for struct and union literals and an index for array. It is an error to specify multiple elements with the same field name.
+</p>
+
+<p>
+For struct literals the following rules apply:
+</p>
+<ul>
+	<li>A key must be a field name declared in the struct type.</li>
+	<li>An element list that does not contain any keys must list an element for each struct field in the order in which the fields are declared.</li>
+	<li>If any element has a key, every element must have a key.</li>
+	<li>An element list that contains keys does not need to have an element for each struct field. Omitted fields get the random uninitilized value for that field.</li>
+	<li>A literal may omit the element list; such a literal gets random uninitilized value for its fields.</li>
+</ul>
+
+<p>
+Given the declarations
+</p>
+<pre class="code">
+type struct Point
+	int x, y, z
+type struct Line
+	struct Point p, q
+</pre>
+
+<p>
+one may write
+</p>
+
+<pre class="code">
+struct Point origin = {0, 0, 0}
+struct Line line = {origin, {x : 0, y : -4, z : 12.3}}
+struct Point empty = {}     // all struct fields get random uninitilized value
+</pre>
+
+<p>
+For union literals the following rules apply:
+</p>
+<ul>
+	<li>A key must be a field name declared in the union type.</li>
+	<li>Only one key can be specified at a time</li>
+</ul>
+
+<p>
+Given the declarations
+</p>
+<pre class="code">
+type union Container
+	int x
+	float y
+	char z
+</pre>
+
+<p>
+one may write
+</p>
+
+<pre class="code">
+union Container c = {x : 0}
+</pre>
+
+<p>
+For array literals the following rules apply:
+</p>
+<ul>
+	<li>Each element has an associated integer index marking its position in the array.</li>
+	<li>An element with a key uses the key as its index. The key must be a non-negative constant representable by a value of type <code>int</code>; and it must be of integer type.</li>
+	<li>An element without a key uses the previous element's index plus one. If the first element has no key, its index is zero.</li>
+	<li>If fewer elements than the length are provided in the literal, the missing elements are set to the random uninitialized value for the array element type.</li>
+	<li>It is an error to provide elements with index values outside the index range of the array.</li>
+</ul>
+
+<pre class="code">
+int[5] price = { 100, 200, 300, 400, 500 }
+int[5] price = { 0 : 100, 1 : 200 }
+int[5] price = { 0 }    // All elements of array are initialized to 0
+</pre>
+
+<p>
+<a href="#Address_operators">Taking the address</a> of a composite literal generates a pointer to a unique <a href="#Variables">variable</a> initialized with the literal's value.
+</p>
+<pre class="code">
+ptr p1 : struct Point = @(Point){x : 1000, y : 1000, z : 1000}   // structure
+ptr p2 : int[5] = @(int[5]){0, 1, 2, 3, 4}                       // array
+</pre>
+
+<h3 id="Function_literals">Function literals</h3>
+
+<p>
+A function literal represents an anonymous <a href="#Function_declarations">function</a>.
+</p>
+
+<pre class="ebnf">
+<a id="FunctionLit">FunctionLit</a> = "def" <a href="#Function" class="noline">Function</a>
+</pre>
+
+<p>
+A function literal can be assigned to a variable or invoked directly.
+</p>
+
+<p>
+Function literals are <i>closures</i>: they may refer to variables defined in a surrounding function. Those variables are then shared between the surrounding function and the function literal, and they survive as long as they are accessible.
+</p>
+
+<pre class="code">
+def main() -> (int)
+	int c = 10
+	ptr calc : (int) -> (int)
+	
+	calc = def (int i) -> (int)    // definition of anonymous function is pointer to that function
+		r = i * i + 10
+		return r
+	calc()
+	
+	def (int i) -> (int)    // anonymous function call
+		r = i * i * i
+		return r
+	()
+	
+	return 0
+</pre>
+
+<h3 id="Primary_expressions">Primary expressions</h3>
+
+<p>
+Primary expressions are the operands for unary and binary expressions.
+</p>
+
+<pre class="ebnf">
+<a id="PrimaryExpr">PrimaryExpr</a> = <a href="#Operand" class="noline">Operand</a> |
+              <a href="#Conversion" class="noline">Conversion</a> |
+              <a href="#PrimaryExpr" class="noline">PrimaryExpr</a> <a href="#Selector" class="noline">Selector</a> |
+              <a href="#PrimaryExpr" class="noline">PrimaryExpr</a> <a href="#Index" class="noline">Index</a> |
+              <a href="#PrimaryExpr" class="noline">PrimaryExpr</a> <a href="#Arguments" class="noline">Arguments</a>
+
+<a id="Selector">Selector</a>    = "." <a href="#identifier" class="noline">identifier</a>
+<a id="Index">Index</a>       = "[" <a href="#Expression" class="noline">Expression</a> "]"
+<a id="Arguments">Arguments</a>   = "(" [ ( <a href="#ExpressionList" class="noline">ExpressionList</a> | <a href="#Type" class="noline">Type</a> [ "," <a href="#ExpressionList" class="noline">ExpressionList</a> ] ) [ "..." ] [ "," ] ] ")"
+</pre>
+
+<h3 id="Selectors">Selectors</h3>
+
+<p>
+For a <a href="#Primary_expressions">primary expression</a> <code>x</code> that is not a <a href="#Modules">module name</a>, the <i>selector expression</i>
+</p>
+
+<pre class="code">
+x.f
+</pre>
+
+<p>
+denotes the field <code>f</code> of the value <code>x</code>. The identifier <code>f</code> is called the field <i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>. The type of the selector expression is the type of <code>f</code>.
+</p>
+
+<p>
+If <code>x</code> is a module name, see the section on <a href="#Qualified_identifiers">qualified identifiers</a>.
+</p>
+
+<p>
+A selector <code>f</code> may denote a field <code>f</code> of a type <code>T</code>, or it may refer to a field <code>f</code> of a nested embedded field of <code>T</code>. The number of embedded fields traversed to reach <code>f</code> is called its <i>depth</i> in <code>T</code>. The depth of a field or method <code>f</code> declared in <code>T</code> is zero. The depth of a field or method <code>f</code> declared in an embedded field <code>A</code> in <code>T</code> is the depth of <code>f</code> in <code>A</code> plus one.
+</p>
+
+<p>
+The following rules apply to selectors:
+</p>
+
+<ol>
+<li>
+For a value <code>x</code> of type <code>T</code> where <code>T</code> is not a pointer type, <code>x.f</code> denotes the field at the zero depth in <code>T</code> where there is such an <code>f</code>. If there is not exactly <a href="#Uniqueness_of_identifiers">one <code>f</code></a> with zero depth, the selector expression is illegal.
+</li>
+
+<li>
+For a value <code>x</code> of type <code>T</code> where <code>T</code> is a pointer type, <code>(*x).f</code> is a valid selector expression denoting the field or method at the zero depth in <code>T</code> where there
+is such an <code>f</code>. Alternativly, <code>x~>f</code> is shorthand for <code>(*x).f</code>.
+</li>
+
+<li>
+In all other cases, <code>x.f</code> is illegal.
+</li>
+
+<li>
+If <code>x</code> is of pointer type and has the value <code>nil</code> and <code>(*x).f</code> or <code>x~>f</code> denotes a struct or union field <code>f</code>, assigning to or evaluating <code>(*x).f</code> causes a <a href="#">Segmentation fault???</a>.
+</li>
+</ol>
+
+<h3 id="Index_expressions">Index expressions</h3>
+
+<p>
+A primary expression of the form
+</p>
+
+<pre class="code">
+a[x]
+</pre>
+
+<p>
+denotes the element of the array or string <code>a</code> indexed by <code>x</code>. The value <code>x</code> is called the <i>index</i>.
+The following rules apply:
+</p>
+
+<p>
+For <code>a</code> of <a href="#Array_types">array type</a> <code>A</code>:
+</p>
+<ul>
+	<li>the index <code>x</code> must be of integer type; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>, otherwise it is <i>out of range</i></li>
+	<li>a <a href="#Constants">constant</a> index must be non-negative and representable by a value of type <code>int</code>
+	<li>a <a href="#Constants">constant</a> index must be in range</li>
+	<li>if <code>x</code> is out of range at run time, a <a href="#Run_time_panics">Run time panic ???</a> occurs</li>
+	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of <code>a[x]</code> is the element type of <code>A</code></li>
+	<li>if <code>a</code> is pointer to array type, <code>(*a)[x]</code> notation is used</li>
+</ul>
+
+<p>
+For <code>a</code> of <a href="#String_types">string type</a>:
+</p>
+<ul>
+	<li>the index <code>x</code> must be of integer type; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>, otherwise it is <i>out of range</i></li>
+	<li>a <a href="#Constants">constant</a> index must be non-negative and representable by a value of type <code>int</code>
+	<li>a <a href="#Constants">constant</a> index must be in range if the string <code>a</code> is also constant</li>
+	<li>if <code>x</code> is out of range at run time, a <a href="#Run_time_panics">Run time panic ???</a> occurs</li>
+	<li><code>a[x]</code> is the non-constant char value at index <code>x</code> and the type of <code>a[x]</code> is <code>char</code></li>
+	<li><code>a[x]</code> may be assigned to</li>
+</ul>
+
+<p>
+Otherwise <code>a[x]</code> is illegal.
+</p>
+
+<p>
+check array key exists ???
+</p>
+
+<h3 id="Function_calls">Function calls</h3>
+
+<p>
+Given an expression <code>f</code> of function type <code>F</code>,
+</p>
+
+<pre class="code">
+f(a1, a2, ... an)
+</pre>
+
+<p>
+calls <code>f</code> with arguments <code>a1, a2, ... an</code>. Except for one special case, arguments must be single-valued expressions <a href="#Assignability">assignable</a> to the parameter types of
+<code>F</code> and are evaluated before the function is called. The type of the expression is the result type of <code>F</code>.
+</p>
+
+<p>
+In a function call, the function value and arguments are evaluated in <a href="#Order_of_evaluation">the usual order</a>. After they are evaluated, the parameters of the call are passed by value to the function
+and the called function begins execution. The return parameters of the function are passed by value back to the calling function when the function returns.
+</p>
+
+<p>
+Calling a <code>nil</code> function value causes a <a href="#Run_time_panics">Run time panic ???</a>.
+</p>
+
+<p>
+As a special case, if the return values of a function <code>g</code> are equal in number and individually assignable to the parameters of another function <code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code> will invoke <code>f</code> after binding the return values of <code>g</code> to the parameters of <code>f</code> in order.  The call of <code>f</code> must contain no parameters other than the call of <code>g</code>,
+and <code>g</code> must have at least one return value.
+</p>
+
+<h3 id="Passing_arguments_to_..._parameters">Passing arguments to <code>...</code> parameters ???</h3>
+
+<p>
+If <code>f</code> is <a href="#Function_types">variadic</a> with a final parameter of type <code>...</code>, then within <code>f</code> the pointers to byte constant <code>va_start</code> and <code>va_end</code> contain the starting and ending memory location of the region of memory allocated to the variables arguments. If <code>f</code> is invoked with no actual arguments for the variable arguments, the value passed to <code>va_start</code> and <code>va_end</code> is <code>nil</code>.
+</p>
+
+<p>
+Given the function and calls
+</p>
+<pre class="code">
+def Printer(...)
+	...
+
+Printer()
+Printer("Login")
+Printer("London", "Paris", "Frankfurt", "Washington")
+</pre>
+
+<p>
+within <code>Printer</code>, the constants <code>va_start</code> and <code>va_end</code> will have the value containing <code>nil</code> in the first call, and start and end address of the region of memory allocated to the parameters in the second and third call.
+</p>
+
+<p>
+The variable <code>va_next</code> contains the location of memory address of the current parameter within the region of memory locations <code>va_start</code> and <code>va_end</code>.
+</p>
+
+<p>
+The type of the variables <code>va_start</code>, <code>va_end</code> and <code>va_next</code> is <code>ptr : byte</code>.
+</p>
+
+<p>
+These variables <code>va_start</code>, <code>va_end</code> and <code>va_next</code> are automatically declared within only variadic functions and are reserved words of the Carbon language.
+</p>
+
+<h3 id="Operators">Operators</h3>
+
+<p>
+Operators combine operands into expressions.
+</p>
+
+<pre class="ebnf">
+<a id="Expression">Expression</a> = <a href="#UnaryExpr" class="noline">UnaryExpr</a> | <a href="#Expression" class="noline">Expression</a> <a href="#binary_op" class="noline">binary_op</a> <a href="#Expression" class="noline">Expression</a>
+<a id="UnaryExpr">UnaryExpr</a>  = <a href="#PrimaryExpr" class="noline">PrimaryExpr</a> | <a href="#unary_op" class="noline">unary_op</a> <a href="#UnaryExpr" class="noline">UnaryExpr</a>
+
+<a id="binary_op">binary_op</a>         = <a href="mul_op">multiplicative_op</a> | <a href="add_op">additive_op</a> | <a href="shf_op">shift_op</a> |
+                    <a href="rel_op">relative_op</a> | <a href="bit_op">bitwise_op</a> | <a href="log_op">logical_op</a>
+<a id="mul_op">multiplicative_op</a> = "*" | "/" | "%"
+<a id="add_op">additive_op</a>       = "+" | "-"
+<a id="shf_op">shift_op</a>          = "&lt;&lt;" | "&gt;&gt;"
+<a id="rel_op">relative_op</a>       = "==" | "!=" | "&lt;" | "&lt;=" | "&gt;" | "&gt;="
+<a id="bit_op">bitwise_op</a>        = "&amp;" | "|" | "^" | "&amp;^"
+<a id="log_op">logical_op</a>        = "&amp;&amp;" | "||"
+
+<a id="unary_op">unary_op</a>          = "+" | "-" | "!" | "^" | "*" | "@" | "->" | "~>"
+</pre>
+
+<p>
+The right operand in a shift expression must have unsigned integer type or be an constant representable by a value of type <code>uint</code>.
+</p>
+
+<pre class="code">
+...
+</pre>
+
+<h4 id="Operator_precedence">Operator precedence</h4>
+<p>
+Unary operators have the highest precedence. As the  <code>++</code> and <code>--</code> operators form statements, not expressions, they fall outside the operator hierarchy. As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
+</p>
+
+<p>
+There are five precedence levels for binary operators. Multiplication operators bind strongest, followed by addition operators, comparison operators, <code>&amp;&amp;</code> (logical AND), and finally <code>||</code> (logical OR):
+</p>
+
+<pre class="grammar">
+Precedence    Operator
+    5             *  /  %  &lt;&lt;  &gt;&gt;  &amp;  &amp;^
+    4             +  -  |  ^
+    3             ==  !=  &lt;  &lt;=  &gt;  &gt;=
+    2             &amp;&amp;
+    1             ||
+</pre>
+
+<p>
+Binary operators of the same precedence associate from left to right. For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
+</p>
+
+<pre class="code">
+10 + 2 - x
+5 * y[i]
+a.vl <= b.vl
+a << 5
+areg || breg
+</pre>
+
+<h3 id="Arithmetic_operators">Arithmetic operators</h3>
+
+<p>
+Arithmetic operators apply to numeric values and yield a result of the same type as the first operand. The four standard arithmetic operators <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> apply to integer and floating-point; <code>+</code> also applies to strings. The bitwise logical and shift operators apply to integers only.
+</p>
+
+<pre class="grammar">
++    sum                    integers, floats, strings
+-    difference             integers, floats
+*    product                integers, floats
+/    quotient               integers, floats
+%    remainder              integers
+
+&amp;    bitwise AND            integers
+|    bitwise OR             integers
+^    bitwise XOR            integers
+&amp;^   bit clear (AND NOT)    integers
+
+&lt;&lt;   left shift             integer &lt;&lt; unsigned integer
+&gt;&gt;   right shift            integer &gt;&gt; unsigned integer
+</pre>
+
+<h4 id="Integer_operators">Integer operators</h4>
+
+<p>
+<ul>
+<li>The sum operator <code>"+"</code> adds two integers</li>
+<li>The difference operator <code>"-"</code> subtracts two integers</li>
+<li>The product operator <code>"*"</code> multiplies two integers</li>
+<li>The quotient operator <code>"/"</code> divides two integers</li>
+<li>The remainder operator <code>"%"</code> returns the remainder of a division of two integers</li>
+</ul>
+</p>
+
+<p>
+For two integer values <code>a</code> and <code>b</code>, the integer quotient <code>q = a / b</code> and remainder <code>r = a % b</code> satisfy the following relationships:
+</p>
+
+<pre class="code">
+a = (q * b) + r
+|r| &lt; |b|
+</pre>
+
+<p>
+with <code>a / b</code> truncated towards zero
+(<a href="https://en.wikipedia.org/wiki/Modulo_operation">"truncated division"</a>).
+</p>
+
+<pre class="code">
+ a     b     a / b     a % b
+ 5     3       1         2
+-5     3      -1        -2
+ 5    -3      -1         2
+-5    -3       1        -2
+</pre>
+
+<p>
+As an exception to this rule, if the dividend <code>a</code> is the most negative value for the int type of <code>a</code>, the quotient <code>q = a / -1</code> is equal to <code>a</code> (and <code>r = 0</code>).
+</p>
+
+<pre class="code">???
+			 x, q
+int8                     -128
+int16                  -32768
+int32             -2147483648
+int64    -9223372036854775808
+</pre>
+
+<p>
+If the divisor is a <a href="#Constants">constant</a>???, it must not be zero. If the divisor is zero at run time, a <a href="#Run_time_panics">run-time panic ???</a> occurs.
+</p>
+
+<h4 id="Shift_operators">Shift operators</h4>
+
+<p>
+The shift operators shift the left operand by the shift count specified by the right operand. They implement arithmetic shifts if the left operand is a signed integer and logical shifts if it is an unsigned integer. There is no upper limit on the shift count. Shifts behave as if the left operand is shifted <code>n</code> times by 1 for a shift count of <code>n</code>. As a result, <code>x &lt;&lt; 1</code> is the same as <code>x*2</code> and <code>x &gt;&gt; 1</code> is the same as <code>x/2</code> but truncated towards negative infinity.
+</p>
+
+<h4 id="Integer_unary_operators">Integer unary operators</h4>
+
+<p>
+For integer operands, the unary operators <code>+</code>, <code>-</code>, and <code>^</code> are defined as follows:
+</p>
+
+<pre class="grammar">
++x                          is 0 + x
+-x    negation              is 0 - x
+^x    bitwise complement    is m ^ x  with m = "all bits set to 1" for unsigned x
+                                      and  m = -1 for signed x
+</pre>
+
+<h4 id="Integer_overflow">Integer overflow</h4>
+
+<p>
+For unsigned integer values, the operations <code>+</code>, <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of the <a href="#Numeric_types">unsigned integer</a>'s type. Loosely speaking, these unsigned integer operations discard high bits upon overflow, and programs may rely on "wrap around".
+</p>
+
+<p>
+For signed integers, the operations <code>+</code>, <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> may legally overflow and the resulting value exists and is deterministically defined by the signed integer representation, the operation, and its operands. No exception is raised as a result of overflow. A compiler may not optimize code under the assumption that overflow does not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
+</p>
+
+<h4 id="Floating_point_operators">Floating-point operators</h4>
+
+<p>
+For floating-point numbers, <code>+x</code> is the same as <code>x</code>, while <code>-x</code> is the negation of <code>x</code>.
+</p>
+
+<p>
+The result of a floating-point division by zero is not specified beyond the IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic ???</a> occurs is implementation-specific.
+</p>
+
+<p>
+An implementation may combine multiple floating-point operations into a single fused operation, possibly across statements, and produce a result that differs from the value obtained by executing and rounding the instructions individually. A floating-point type <a href="#Conversions">conversion</a> explicitly rounds to the precision of the target type, preventing fusion that would discard that rounding. For instance, some architectures provide a "fused multiply and add" (FMA) instruction that computes <code>x*y + z</code> without rounding the intermediate result <code>x*y</code>.
+</p>
+
+<pre class="code">
+float32 x, y
+x = 45.567
+y = x + 56.67
+</pre>
+
+<h4 id="String_concatenation">String concatenation</h4>
+
+<p>
+Strings can be concatenated using the <code>+</code> operator or the <code>+=</code> assignment operator:
+</p>
+
+<pre class="code">
+s = "hello " + " " + "world"
+s += " and welcome to Carbon"
+</pre>
+
+<p>
+String addition creates a new string by concatenating the operands.
+</p>
+
+<h3 id="Comparison_operators">Comparison operators</h3>
+
+<p>
+Comparison operators compare two operands and return an boolean value.
+</p>
+
+<pre class="grammar">
+==    equal
+!=    not equal
+&lt;     less
+&lt;=    less or equal
+&gt;     greater
+&gt;=    greater or equal
+</pre>
+
+<p>
+In any comparison, the first operand must be <a href="#Assignability">assignable</a> to the type of the second operand, or vice versa.
+</p>
+<p>
+The equality operators <code>==</code> and <code>!=</code> apply to operands that are <i>comparable</i>. The ordering operators <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code>
+apply to operands that are <i>ordered</i>. These terms and the result of the comparisons are defined as follows:
+</p>
+
+<ul>
+	<li>
+	Boolean values are comparable. Two boolean values are equal if they are either both <code>true</code> or both <code>false</code>.
+	</li>
+
+	<li>
+	Integer values are comparable and ordered, in the usual way.
+	</li>
+
+	<li>
+	Floating-point values are comparable and ordered, as defined by the IEEE-754 standard.
+	</li>
+
+	<li>
+	String values are comparable and ordered, lexically byte-wise.
+	</li>
+
+	<li>
+	Pointer values are comparable. Two pointer values are equal if they point to the same variable or if both have value <code>nil</code>. Pointers to distinct <a href="#Size_and_alignment_guarantees">zero-size</a> variables may or may not be equal.
+	</li>
+
+	<li>
+	Struct values are comparable if all their fields are comparable. Two struct values are equal if their corresponding non-<a href="#Blank_identifier">blank</a> fields are equal.
+	</li>
+
+	<li>
+	Union values are comparable and ordered only if the active field is specified and not otherwise.
+	</li>
+
+	<li>
+	Enum values are comparable and ordered, in the usual way.
+	</li>
+
+	<li>
+	Array values are comparable if values of the array element type are comparable. Two array values are equal if their corresponding elements are equal.
+	</li>
+
+	<li>
+	Function values are not comparable. However, as a special case, function value may be compared to the predeclared identifier <code>nil</code>.
+	</li>
+</ul>
+
+<pre class="code">
+bool b = false
+if x < y
+	b = true
+else if x == y
+	b = true
+else if x > y
+	b = false
+</pre>
+
+<h3 id="Logical_operators">Logical operators</h3>
+
+<p>
+Logical operators apply to <a href="#Boolean_types">boolean</a> values and yield a result of the same type as the operands. The right operand is <a href="https://en.wikipedia.org/wiki/Short-circuit_evaluation">evaluated conditionally</a> only if the left operand does not suffice to determine the value of the expression.
+</p>
+
+<pre class="grammar">
+&amp;&amp;    conditional AND    x &amp;&amp; y  is  "if x then y else false"
+||    conditional OR     x || y  is  "if x then true else y"
+!     NOT                !x      is  "not x"
+</pre>
+
+
+<h3 id="Address_operators">Address operators</h3>
+
+<p>
+For an operand <code>x</code> of type <code>T</code>, the address operation <code>@</code> generates a pointer of type <code>ptr : T</code> to <code>x</code>. The operand must be <i>addressable</i>, that is, either a variable, pointer indirection or a field selector of an addressable struct or union operand; or an array indexing operation of an addressable array. As an exception to the addressability requirement, <code>x</code> may also be a (possibly parenthesized) <a href="#Composite_literals">composite literal</a>. If the evaluation of <code>x</code> would cause a <a href="#Run_time_panics">run-time panic</a>???, then the evaluation of <code>@x</code> does too.
+</p>
+
+<p>
+For an operand <code>x</code> of pointer type <code>ptr : T</code>, the pointer indirection <code>*x</code> denotes the <a href="#Variables">variable</a> of type <code>T</code> pointed to by <code>x</code>. If <code>x</code> is <code>nil</code>, an attempt to evaluate <code>*x</code> will cause a <a href="#Run_time_panics">run-time panic</a>???.
+</p>
+
+<pre class="code">
+@p.age     // address of struct variable "p" having field "age"
+@arr[100]  // address of 100th element of array "arr"
+</pre>
+
+<h3 id="Conversions">Conversions</h3>
+
+<p>
+Conversions are expressions of the form <code>(T)x</code> where <code>T</code> is a type and <code>x</code> is an expression that can be converted to type <code>T</code>.
+</p>
+
+<pre class="ebnf">
+<a id="Conversion">Conversion</a> = "(" <a href="#Type" class="noline">Type</a> ")" <a href="#Expression" class="noline">Expression</a>
+</pre>
+
+<pre class="code">
+(float32)i
+(ptr : int)p
+(ptr : (int, int) -> (int))f
+</pre>
+
+<p>
+A value <code>x</code> can be converted to type <code>T</code> in any of these cases:
+</p>
+
+<ul>
+	<li>
+	<code>x</code> is <a href="#Assignability">assignable</a>
+	to <code>T</code>.
+	</li>
+	<li>
+	<code>x</code>'s type and <code>T</code> have <a href="#Type_identity">identical</a>
+	<a href="#Types">underlying types</a>.
+	</li>
+	<li>
+	<code>x</code>'s type and <code>T</code> are pointer types
+	that are not <a href="#Type_definitions">defined types</a>,
+	and their pointer base types have identical underlying types.
+	</li>
+	<li>
+	<code>x</code>'s type and <code>T</code> are both integer or floating
+	point types.
+	</li>
+	<li>
+	<code>x</code> is an integer and <code>T</code> is a string type.
+	</li>
+</ul>
+
+<p>
+Specific rules apply to conversions between numeric types or to and from a string type. These conversions may change the representation of <code>x</code> and incur a run-time cost. All other conversions only change the type but not the representation of <code>x</code>.
+</p>
+
+<p>
+There is no linguistic mechanism to convert between pointers and integers. The package <a href="#Package_unsafe"><code>unsafe</code></a> implements this functionality under restricted circumstances. ???
+</p>
+
+<h4>Conversions between numeric types</h4>
+
+<p>
+For the conversion of numeric values, the following rules apply:
+</p>
+
+<ol>
+<li>
+When converting between integer types, if the value is a signed integer, it is sign extended to implicit infinite precision; otherwise it is zero extended. It is then truncated to fit in the result type's size. For example, if <code>v = (uint16)0x10F0</code>, then <code>(uint32)((int8)v) == 0xFFFFFFF0</code>. The conversion always yields a valid value; there is no indication of overflow.
+</li>
+
+<li>
+When converting a floating-point number to an integer, the fraction is discarded (truncation towards zero).
+</li>
+
+<li>
+When converting an integer or floating-point number to a floating-point type, the result value is rounded to the precision specified by the destination type. For instance, the value of a variable <code>x</code> of type <code>float32</code> may be stored using additional precision beyond that of an IEEE-754 32-bit number, but (float32)x represents the result of rounding <code>x</code>'s value to 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits of precision, but <code>(float32)(x + 0.1)</code> does not.
+</li>
+</ol>
+
+<p>
+In all conversions involving floating-point, if the result type cannot represent the value the conversion succeeds but the result value is implementation-dependent.
+</p>
+
+<h4 id="Conversions_to_and_from_a_string_type">Conversions to and from a string type ???</h4>
+
+<ol>
+<li>
+Converting a signed or unsigned integer value to a string type yields a string containing the UTF-8 representation of the integer. Values outside the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
+
+<pre class="code">
+string('a')       // "a"
+string(-1)        // "\ufffd" == "\xef\xbf\xbd"
+string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
+type MyString string
+MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
+</pre>
+</li>
+
+<li>
+Converting a array of bytes to a string type yields a string whose successive bytes are the elements of the slice.
+
+<pre class="code">
+(string)(byte[]{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
+string([]byte{})                                     // ""
+string([]byte(nil))                                  // ""
+
+type MyBytes []byte
+string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
+</pre>
+</li>
+
+<li>
+Converting a slice of runes to a string type yields
+a string that is the concatenation of the individual rune values
+converted to strings.
+
+<pre class="code">
+string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+string([]rune{})                         // ""
+string([]rune(nil))                      // ""
+
+type MyRunes []rune
+string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+</pre>
+</li>
+
+<li>
+Converting a value of a string type to a slice of bytes type
+yields a slice whose successive elements are the bytes of the string.
+
+<pre class="code">
+[]byte("hellø")   // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+[]byte("")        // []byte{}
+
+MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+</pre>
+</li>
+
+<li>
+Converting a value of a string type to a slice of runes type
+yields a slice containing the individual Unicode code points of the string.
+
+<pre class="code">
+[]rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
+[]rune("")                 // []rune{}
+
+MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
+</pre>
+</li>
+</ol>
+
+<h3 id="Constant_expressions">Constant expressions ???</h3>
+
+<p>
+Constant expressions may contain only <a href="#Constants">constant</a> operands and are evaluated at compile time.
+</p>
+
+<p>
+Boolean, numeric, and string constants may be used as operands wherever it is legal to use an operand of boolean, numeric, or string type, respectively.
+</p>
+
+<p>
+A constant <a href="#Comparison_operators">comparison</a> always yields an boolean constant.
+</p>
+
+<pre class="code">
+const int a = 1 + 10          // a == 11
+const bool j = true           // j == true
+</pre>
+
+<p>
+The divisor of a constant division or remainder operation must not be zero:
+</p>
+
+<pre class="code">
+10.21 / 0.0   // illegal: division by zero
+</pre>
+
+<p>
+The values of constants must always be accurately representable as values of the constant type. The following constant expressions are illegal:
+</p>
+
+<pre class="code">
+uint i = -1     // -1 cannot be represented as a uint
+int j = 3.14    // 3.14 cannot be represented as an int
+</pre>
+
+<h3 id="Order_of_evaluation">Order of evaluation</h3>
+
+<p>
+At module level, <a href="#Module_initialization">initialization dependencies</a> determine the evaluation order of individual initialization expressions in <a href="#Variable_declarations">variable declarations</a>. Otherwise, when evaluating the <a href="#Operands">operands</a> of an expression, assignment, or <a href="#Return_statements">return statement</a>, all function calls are evaluated in lexical left-to-right order.
+</p>
+
+<p>
+Floating-point operations within a single expression are evaluated according to the associativity of the operators.  Explicit parentheses affect the evaluation by overriding the default associativity. In the expression <code>x + (y + z)</code> the addition <code>y + z</code> is performed before adding <code>x</code>.
+</p>
+
+<h2 id="Statements">Statements</h2>
+
+<p>
+Statements control execution.
+</p>
+
+<pre class="ebnf">
+<a id="Statement">Statement</a>  = <a href="#Declaration" class="noline">Declaration</a> | <a href="#LabeledStmt" class="noline">LabeledStmt</a> | <a href="#SimpleStmt" class="noline">SimpleStmt</a> |
+             <a href="#IfStmt" class="noline">IfStmt</a> | <a href="#SwitchStmt" class="noline">SwitchStmt</a> | <a href="#ForStmt" class="noline">ForStmt</a> | <a href="#ForEachStmt" class="noline">ForEachStmt</a> |
+             <a href="#WhileStmt" class="noline">WhileStmt</a> | <a href="#DoWhileStmt" class="noline">DoWhileStmt</a> |
+             <a href="#ReturnStmt" class="noline">ReturnStmt</a> | <a href="#BreakStmt" class="noline">BreakStmt</a> | <a href="#ContinueStmt" class="noline">ContinueStmt</a> | <a href="#GotoStmt" class="noline">GotoStmt</a> |
+             <a href="#FallthroughStmt" class="noline">FallthroughStmt</a> | <a href="#Block" class="noline">Block</a> |
+             <a href="#DeferStmt" class="noline">DeferStmt</a>
+
+<a id="SimpleStmt">SimpleStmt</a> = <a href="#ExpressionStmt" class="noline">ExpressionStmt</a> | <a href="#IncDecStmt" class="noline">IncDecStmt</a> | <a href="#Assignment" class="noline">Assignment</a>
+</pre>
+
+<h3 id="Terminating_statements">Terminating statements</h3>
+
+<p>
+A terminating statement is one of the following:
+</p>
+
+<ol>
+<li>
+	A <a href="#Return_statements">"return"</a> or
+    	<a href="#Goto_statements">"goto"</a> statement.
+</li>
+
+<li>
+	A <a href="#Blocks">block</a> in which the statement list ends in a terminating statement.
+</li>
+
+<li>
+	An <a href="#If_statements">"if" statement</a> in which:
+	<ul>
+	<li>the "else" branch is present, and</li>
+	<li>both branches are terminating statements.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#For_statements">"for" statement</a> in which:
+	<ul>
+	<li>there are no "break" statements referring to the "for" statement, and</li>
+	<li>the loop condition is absent.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#Switch_statements">"switch" statement</a> in which:
+	<ul>
+	<li>there are no "break" statements referring to the "switch" statement,</li>
+	<li>there is a default case, and</li>
+	<li>the statement lists in each case, including the default, end in a terminating
+	    statement, or a possibly labeled <a href="#Fallthrough_statements">"fallthrough"
+	    statement</a>.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#Labeled_statements">labeled statement</a> labeling
+	a terminating statement.
+</li>
+</ol>
+
+<p>
+All other statements are not terminating.
+</p>
+
+<p>
+A <a href="#Blocks">statement list</a> ends in a terminating statement if the list
+is not empty and its final non-empty statement is terminating.
+</p>
+
+<h3 id="Labeled_statements">Labeled statements</h3>
+
+<p>
+A labeled statement may be the target of a <code>goto</code>, <code>break</code> or <code>continue</code> statement.
+</p>
+
+<pre class="ebnf">
+<a id="LabeledStmt">LabeledStmt</a> = <a href="#Label" class="noline">Label</a> ":" <a href="#Statement" class="noline">Statement</a>
+<a id="Label">Label</a>       = <a href="#identifier" class="noline">identifier</a>
+</pre>
+
+<h3 id="Label_scopes">Label scopes</h3>
+
+<p>
+In contrast to other identifiers, labels are not block scoped and do not conflict with identifiers that are not labels. The scope of a label is the body of the function in which it is declared and excludes the body of any nested function.
+</p>
+
+<h3 id="Expression_statements">Expression statements</h3>
+
+<p>
+With the exception of specific built-in functions, function <a href="#Calls">calls</a> can appear in statement context. Such statements may be parenthesized.
+</p>
+
+<pre class="ebnf">
+<a id="ExpressionStmt">ExpressionStmt</a> = <a href="#Expression" class="noline">Expression</a>
+</pre>
+
+<p>
+The following built-in functions are not permitted in statement context:
+</p>
+
+<pre class="code">
+len new ???
+</pre>
+
+<h3 id="IncDec_statements">IncDec statements</h3>
+
+<p>
+The "++" and "--" statements increment or decrement their operands by <code>1</code> respectively. As with an assignment, the operand must be <a href="#Address_operators">addressable</a>.
+</p>
+
+<pre class="ebnf">
+<a id="IncDecStmt">IncDecStmt</a> = <a href="#Expression" class="noline">Expression</a> ( "++" | "--" )
+</pre>
+
+<p>
+The following <a href="#Assignments">assignment statements</a> are semantically
+equivalent:
+</p>
+
+<pre class="grammar">
+IncDec statement    Assignment
+x++                 x += 1
+x--                 x -= 1
+</pre>
+
+
+<h3 id="Assignments">Assignments</h3>
+
+<pre class="ebnf">
+<a id="Assignment">Assignment</a> = <a href="#ExpressionList" class="noline">ExpressionList</a> <a href="#assign_op" class="noline">assign_op</a> <a href="#ExpressionList" class="noline">ExpressionList</a>
+<a id="assign_op">assign_op</a>  = [ <a href="#add_op" class="noline">add_op</a> | <a href="#mul_op" class="noline">mul_op</a> | <a href="#shf_op">shift_op</a> | <a href="#bit_op">bitwise_op</a> ] "="
+</pre>
+
+<p>
+Each left-hand side operand must be <a href="#Address_operators">addressable</a> or (for <code>=</code> assignments only) the <a href="#Blank_identifier">blank identifier</a>. Operands may be parenthesized.
+</p>
+
+<p>
+An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code> <code>y</code> where <i>op</i> is a binary <a href="#Arithmetic_operators">arithmetic operator</a> is equivalent to <code>x</code> <code>=</code> <code>x</code> <i>op</i> <code>(y)</code> but evaluates <code>x</code> only once.  The <i>op</i><code>=</code> construct is a single token. In assignment operations, both the left- and right-hand expression lists must contain exactly one single-valued expression, and the left-hand expression must not be the blank identifier.
+</p>
+
+<p>
+A tuple assignment assigns the individual elements of a multi-valued operation to a list of variables.  There are two forms.  In the first, the right hand operand is a single multi-valued expression such as a function call. The number of operands on the left hand side must match the number of values.  For instance, if <code>f</code> is a function returning two values,
+</p>
+
+<pre class="code">
+x, y = f()
+</pre>
+
+<p>
+assigns the first value to <code>x</code> and the second to <code>y</code>.
+In the second form, the number of operands on the left must equal the number of expressions on the right, each of which must be single-valued, and the <i>n</i>th expression on the right is assigned to the <i>n</i>th operand on the left:
+</p>
+
+<pre class="code">
+one, two, three = 1, 2, 3
+</pre>
+
+<p>
+The <a href="#Blank_identifier">blank identifier</a> provides a way to ignore right-hand side values in an assignment:
+</p>
+
+<pre class="code">
+_ = x       // evaluate x but ignore it
+x, _ = g()  // evaluate g() but ignore second result value
+</pre>
+
+<p>
+The assignment proceeds in two phases. First, the operands of <a href="#Index_expressions">index expressions</a> and <a href="#Address_operators">pointer indirections</a> (including implicit pointer indirections in <a href="#Selectors">selectors</a>) on the left and the expressions on the right are all <a href="#Order_of_evaluation">evaluated in the usual order</a>. Second, the assignments are carried out in left-to-right order.
+</p>
+
+<p>
+In assignments, each value must be <a href="#Assignability">assignable</a> to the type of the operand to which it is assigned, except in the case that any value may be assigned to the blank identifier.
+</li>
+</ol>
+
+<h3 id="If_statements">If statements</h3>
+
+<p>
+"If" statements specify the conditional execution of two branches according to the value of a boolean expression.  If the expression evaluates to true, the "if" branch is executed, otherwise, if present, the "else" branch is executed.
+</p>
+
+<pre class="ebnf">
+<a id="IfStmt">IfStmt</a> = "if" <a href="#Expression" class="noline">Expression</a> <a href="#Block" class="noline">Block</a> [ "else" ( <a href="#IfStmt" class="noline">IfStmt</a> | <a href="#Block" class="noline">Block</a> ) ]
+</pre>
+
+<pre class="code">
+if x < 10
+	print("x is less than 10")
+else if x < 100
+	print("x is less than 100")
+else if x < 1000
+	print("x is less than 1000")
+else
+	print("x is greater than or equal to 1000")
+</pre>
+
+<h3 id="Switch_statements">Switch statements</h3>
+
+<p>
+"Switch" statements provide multi-way execution. An expression is compared to the "cases" inside the "switch" to determine which branch to execute.
+</p>
+
+<pre class="ebnf">
+<a id="SwitchStmt">SwitchStmt</a>     = <a href="#ExprSwitchStmt" class="noline">ExprSwitchStmt</a>
+<a id="ExprSwitchStmt">ExprSwitchStmt</a> = "switch" [ <a href="#Expression" class="noline">Expression</a> ] "&lt;BB&gt;" { <a href="#ExprCaseClause" class="noline">ExprCaseClause</a> } "&lt;EB&gt;"
+<a id="ExprCaseClause">ExprCaseClause</a> = <a href="#ExprSwitchCase" class="noline">ExprSwitchCase</a> ":" <a href="#StatementList" class="noline">StatementList</a>
+<a id="ExprSwitchCase">ExprSwitchCase</a> = "case" <a href="#ExpressionList" class="noline">ExpressionList</a> | "default"
+</pre>
+
+<p>
+In an expression switch, the cases contain expressions that are compared against the value of the switch expression. The switch expression is evaluated exactly once in a switch statement.
+</p>
+
+<p>
+In an expression switch, the switch expression is evaluated and the case expressions, which need not be constants, are evaluated left-to-right and top-to-bottom; the first one that equals the switch expression
+triggers execution of the statements of the associated case; the other cases are skipped.
+If no case matches and there is a "default" case, its statements are executed. There can be at most one default case and it may appear anywhere in the "switch" statement. A missing switch expression is equivalent to the boolean value <code>true</code>.
+</p>
+
+<p>
+In a case or default clause, the last non-empty statement may be a (possibly <a href="#Labeled_statements">labeled</a>) <a href="#Fallthrough_statements">"fallthrough" statement</a> to indicate that control should flow from the end of this clause to the first statement of the next clause. Otherwise control flows to the end of the "switch" statement. A "fallthrough" statement may appear as the last statement of all but the last clause of an expression switch.
+</p>
+
+<p>
+Implementation restriction: A compiler may disallow multiple case expressions evaluating to the same constant. For instance, the current compilers disallow duplicate integer, floating point, or string constants in case expressions.
+</p>
+
+<pre class="code">
+switch x
+	case 1, 3, 5, 7 : odd()
+	case 2, 4, 6, 8 : even()
+
+switch              // missing expression means true
+	case x < 10 :
+		print("x is less than 10")
+		f1()
+	case x < 100 :
+		f2()
+	case x < 1000 :
+		f3()
+	default : 
+		print("x is greater than or equal to 1000")
+
+switch
+	case x < 0 :
+		p1(x)
+		fallthrough      // execute the next case or default case
+	default :
+		p2(x)
+</pre>
+
+<h3 id="For_statements">For statements</h3>
+
+<p>
+A "for" statement specifies repeated execution of a block. it contains a "for" clause that controls the iteration, an <i>init</i> and a <i>post</i> statement, such as an assignment, an increment or decrement statement. The init statement may be a <a href="Variable_declarations">variable declarations</a>, but the post statement must not. Variables declared by the init statement are re-used in each iteration.
+</p>
+
+<pre class="ebnf">
+<a id="ForStmt">ForStmt</a>   = "for" <a href="#ForClause" class="noline">ForClause</a> <a href="#Block" class="noline">Block</a>
+<a id="ForClause">ForClause</a> = [ <a href="#InitStmt" class="noline">InitStmt</a> ] ";" [ <a href="#Condition" class="noline">Condition</a> ] ";" [ <a href="#PostStmt" class="noline">PostStmt</a> ]
+<a id="InitStmt">InitStmt</a>  = <a href="#SimpleStmt" class="noline">SimpleStmt</a>
+<a id="PostStmt">PostStmt</a>  = <a href="#SimpleStmt" class="noline">SimpleStmt</a>
+</pre>
+
+<pre class="code">
+for int i = 0; i &lt; 10; i++
+	f(i)
+</pre>
+
+<p>
+If non-empty, the init statement is executed once before evaluating the condition for the first iteration; the post statement is executed after each execution of the block (and only if the block was executed). Any element of the ForClause may be empty but the <a href="#Semicolons">semicolons</a> are required.
+</p>
+
+<h3 id="Foreach_statements">Foreach statements</h3>
+
+<p>
+A "foreach" statement iterates through all entries of an array or string. For each entry it assigns <i>iteration values</i> to corresponding <i>iteration variables</i> if present and then executes the block.
+</p>
+
+<pre class="ebnf">
+<a id="ForEachStmt">ForEachStmt</a>    = "foreach" <a href="#IterationValue" class="noline">IterationValue</a>, <a href="#IterationCount" class="noline">IterationCount</a> "in" <a href="#Expression" class="noline">Expression</a> <a href="#Block" class="noline">Block</a>
+<a id="IterationValue">IterationValue</a> = [ <a href="#Type" class="noline">Type</a> ] <a href="#identifier" class="noline">identifier</a>
+<a id="IterationCount">IterationCount</a> = [ <a href="#Type" class="noline">Type</a> ] <a href="#identifier" class="noline">identifier</a>
+</pre>
+
+<p>
+The expression on the right may be an array or string. As with an assignment, if present the operands on the left must be <a href="#Address_operators">addressable</a>; they denote the iteration variables. If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>, the foreach statement is equivalent to the same without that identifier.
+</p>
+
+<p>
+On each iteration, the value of the current element is assigned to first operands on the left. The second operands on the left stores the current count of the number of times the foreach loop is executed starting from 0.
+</p>
+
+<p>
+For an array value <code>a</code>, the index iteration values are produced in increasing order, starting at element index 0. If at most one iteration variable is present, the foreach loop produces iteration values from 0 up to <code>len(a)-1</code> and does not index into the array itself.
+</p>
+
+<p>
+For a string value, foreach statement iterates over the each character in the string starting at byte index 0. On successive iterations, the index value will be the index of the next character in the string, and the second value, of type <code>char</code>, will be the value of the corresponding character.
+</p>
+
+<p>
+If the iteration variables are declared within the "foreach" statement then their <a href="#Scope">scope</a> is the block of the "foreach" statement; they are re-used in each iteration. If the iteration variables are declared outside the "foreach" statement, after execution their values will be those of the last iteration.
+</p>
+
+<pre class="code">
+int[100] arr
+foreach val, count in arr
+	// type of val is int
+	// type of count is int
+	arr[count] = val + 10
+
+string str
+foreach char s, int count in str
+	// scope of s and count is within the foreach block
+	// type of s is char
+	// type of count is int
+	f(s, count)
+</pre>
+
+<h3 id="While_statements">While statements</h3>
+
+<p>
+A "while" statement specifies repeated execution of a block as long as a condition evaluates to true. The condition is evaluated before each iteration. If the condition is absent, it is equivalent to the boolean value <code>true</code>.
+</p>
+
+<pre class="ebnf">
+<a id="WhileStmt">WhileStmt</a> = "while" [ <a href="#Condition" class="noline">Condition</a> ] <a href="#Block" class="noline">Block</a>
+<a id="Condition">Condition</a> = <a href="#Expression" class="noline">Expression</a>
+</pre>
+
+<pre class="code">
+while a &lt; b
+	a *= 2
+</pre>
+
+<h3 id="Do_While_statements">Do While statements</h3>
+
+<p>
+A "do" "while" statement specifies repeated execution of a block as long as a condition evaluates to true. The condition is evaluated at the end of the block before the next iteration. If the condition is absent, it is equivalent to the boolean value <code>true</code>. The block is executed atleast once unconditionally for the first iteration.
+</p>
+
+<pre class="ebnf">
+<a id="DoWhileStmt">DoWhileStmt</a> = "do" <a href="#Block" class="noline">Block</a> "while" [ <a href="#Condition" class="noline">Condition</a> ]
+<a id="Condition">Condition</a>   = <a href="#Expression" class="noline">Expression</a>
+</pre>
+
+<pre class="code">
+do
+	a *= 2
+while a &lt; b
+</pre>
+
+<h3 id="Return_statements">Return statements</h3>
+
+<p>
+A "return" statement in a function <code>F</code> terminates the execution of <code>F</code>, and optionally provides one or more result values. Any statements <a href="#Defer_statements">deferred</a> by <code>F</code> are executed before <code>F</code> returns to its caller.
+</p>
+
+<pre class="ebnf">
+<a id="ReturnStmt">ReturnStmt</a> = "return" [ <a href="#ExpressionList" class="noline">ExpressionList</a> ]
+</pre>
+
+<p>
+In a function without a result type, a "return" statement must not specify any result values.
+</p>
+<pre class="code">
+def noResult() -> ()
+	return
+</pre>
+
+<p>
+There are three ways to return values from a function with a result type:
+</p>
+
+<ol>
+	<li>
+	The return value or values may be explicitly listed in the "return" statement. Each expression must be single-valued and <a href="#Assignability">assignable</a> to the corresponding element of the function's result type.
+<pre class="code">
+def simpleF() -> (int)
+	return 2
+
+def complexF1() -> (float64 re, float64 im)
+	return -7.0, -4.0
+</pre>
+	</li>
+	<li>
+	The expression list in the "return" statement may be a single call to a multi-valued function. The effect is as if each value returned from that function were assigned to a temporary variable with the type of the respective value, followed by a "return" statement listing these variables, at which point the rules of the previous case apply.
+<pre class="code">
+def complexF2() -> (float64 re, float64 im)
+	return complexF1()
+</pre>
+	</li>
+	<li>
+	The expression list may be empty if the function's result type specifies names for its <a href="#Function_types">result parameters</a>. The result parameters act as ordinary local variables and the function may assign values to them as necessary. The "return" statement returns the values of these variables.
+<pre class="code">
+def complexF3() -> (float64 re, float64 im)
+	re = 7.0
+	im = 4.0
+	return
+</pre>
+	</li>
+</ol>
+
+<p>
+Regardless of how they are declared, all the result values are initialized to random value for their type upon entry to the function. A "return" statement that specifies results sets the result parameters before any deferred functions are executed.???
+</p>
+
+<p>
+Implementation restriction: A compiler may disallow an empty expression list in a "return" statement if a different entity (constant, type, or variable) with the same name as a result parameter is in <a href="#Scope">scope</a> at the place of the return.
+</p>
+
+<pre class="code">
+def f(int n) -> (int res, int err)
+	res, err = f(n-1)
+	if int err != nil
+		return  // invalid return statement: err is shadowed
+	return
+</pre>
+
+<h3 id="Break_statements">Break statements</h3>
+
+<p>
+A "break" statement terminates execution of the innermost
+<a href="#Switch_statements">"switch"</a>,
+<a href="#For_statements">"for"</a>,
+<a href="#ForEach_statements">"foreach"</a>,
+<a href="#While_statements">"while"</a>, or
+<a href="#Do_While_statements">"do while"</a> statement
+within the same function.
+</p>
+
+<pre class="ebnf">
+<a id="BreakStmt">BreakStmt</a> = "break" [ <a href="#Label" class="noline">Label</a> ]
+</pre>
+
+<p>
+If there is a label, it must be that of an enclosing "switch", "for", "foreach", "while" or "do while" statement, and that is the one whose execution terminates.
+</p>
+
+<pre class="code">
+OuterLoop:
+	for i = 0; i &lt; n; i++
+		for j = 0; j &lt; m; j++
+			switch a[i][j]
+			case nil:
+				state = Error
+				break OuterLoop
+			case item:
+				state = Found
+				break
+</pre>
+
+<h3 id="Continue_statements">Continue statements</h3>
+
+<p>
+A "continue" statement begins the next iteration of the innermost
+<a href="#For_statements">"for"</a> at its post statement,
+<a href="#ForEach_statements">"foreach"</a>,
+<a href="#While_statements">"while"</a>, or
+<a href="#Do_While_statements">"do while"</a> loop.
+The "for", "foreach", "while" or "do while" loop must be within the same function.
+</p>
+
+<pre class="ebnf">
+<a id="ContinueStmt">ContinueStmt</a> = "continue" [ <a href="#Label" class="noline">Label</a> ]
+</pre>
+
+<p>
+If there is a label, it must be that of an enclosing "for", "foreach", "while" or "do while" statement, and that is the one whose execution advances.
+</p>
+
+<pre class="code">
+RowLoop:
+	for y, row = range rows
+		for x, data = range row
+			if data == endOfRow
+				continue RowLoop
+			row[x] = data + bias(x, y)
+</pre>
+
+<h3 id="Goto_statements">Goto statements</h3>
+
+<p>
+A "goto" statement transfers control to the statement with the corresponding label within the same function.
+</p>
+
+<pre class="ebnf">
+<a id="GotoStmt">GotoStmt</a> = "goto" <a href="#Label" class="noline">Label</a>
+</pre>
+
+<pre class="code">
+goto Error
+</pre>
+
+<p>
+Executing the "goto" statement must not cause any variables to come into <a href="#Scope">scope</a> that were not already in scope at the point of the goto. For instance, this example:
+</p>
+
+<pre class="code">
+	goto L  // BAD
+	int v = 3
+L:
+</pre>
+
+<p>
+is erroneous because the jump to label <code>L</code> skips the creation of <code>v</code>.
+</p>
+
+<p>
+A "goto" statement outside a <a href="#Blocks">block</a> cannot jump to a label inside that block. For instance, this example:
+</p>
+
+<pre class="code">
+if n%2 == 1
+	goto L1
+
+for n &gt; 0
+	f()
+	n--
+L1:
+	f()
+	n++
+</pre>
+
+<p>
+is erroneous because the label <code>L1</code> is inside the "for" statement's block but the <code>goto</code> is not.
+</p>
+
+<h3 id="Fallthrough_statements">Fallthrough statements</h3>
+
+<p>
+A "fallthrough" statement transfers control to the first statement of the next case clause in an <a href="#Switch_statements">"switch"</a> statement. It may be used only as the final non-empty statement in such a clause.
+</p>
+
+<pre class="ebnf">
+<a id="FallthroughStmt">FallthroughStmt</a> = "fallthrough"
+</pre>
+
+<pre class="code">
+switch
+	case x < 0 :
+		p1(x)
+		fallthrough      // execute the next case or default case
+	case x > 10 :
+		p2(x)
+	default :
+		p3(x)
+</pre>
+
+<h3 id="Defer_statements">Defer statements ???</h3>
+
+<p>
+A "defer" statement invokes a block of statements whose execution is deferred to the moment the surrounding function returns, either because the surrounding function executed a <a href="#Return_statements">return statement</a> or reached the end of its <a href="#Function_declarations">function body</a>.
+</p>
+
+<pre class="ebnf">
+<a id="DeferStmt">DeferStmt</a> = "defer" <a href="#Block" class="noline">Block</a>
+</pre>
+
+<p>
+The deferred blocks are invoked immediately before the surrounding function returns, in the reverse order they were deferred.
+</p>
+
+<p>
+The deferred block may access and modify the result parameters before they are returned. The deferred block cannot contain any <a href="Return_statements">return</a> statements.
+</p>
+
+<pre class="code">
+lock(l)
+defer unlock(l)  // unlocking happens before surrounding function returns
+
+// prints 3 2 1 0 before surrounding function returns
+for int i = 0; i &lt;= 3; i++
+	defer fmt.Print(i)
+</pre>
+
+<h2 id="Built-in_functions">Built-in functions</h2>
+
+<p>
+Built-in functions are <a href="#Predeclared_identifiers">predeclared</a>. They are called like any other function but some of them accept a type instead of an expression as the first argument.
+</p>
+
+<h3 id="Size">Size</h3>
+
+<p>
+The built-in functions <code>size</code> take arguments of various types and returns the size of the type in bytes. The implementation guarantees that the result always fits into an <code>int</code>.
+</p>
+
+<pre class="grammar">
+Call               Argument type     Result
+
+size(int64)        int64 type        8 (bytes)
+size(int32[10])    int32[10]         40 (4 bytes for int32 * 10)
+</pre>
+
+<h3 id="Length">Length</h3>
+
+<p>
+The built-in functions <code>len</code> take arguments of type string or array and return a length of the string or array. The implementation guarantees that the result always fits into an <code>int</code>.
+</p>
+
+<pre class="grammar">
+Call      Argument type      Result
+
+len(s)    string type        string length
+          T[n]               array length (== n)
+</pre>
+
+<h3 id="Memory_allocation_type">Memory allocation (type)</h3>
+
+<p>
+The built-in function <code>new</code> takes a type <code>T</code>, allocates storage for a <a href="#Variables">variable</a> of that type at run time, and returns a value of type <code>*T</code> <a href="#Pointer_types">pointing</a> to it.
+</p>
+
+<pre class="grammar">
+new(T)
+</pre>
+
+<p>
+For instance
+</p>
+
+<pre class="code">
+type struct S
+	int a
+	float64 b
+new(S)
+</pre>
+
+<h3 id="Memory_allocation_size">Memory allocation (size)</h3>
+
+<p>
+The built-in function <code>alloc</code> and <code>calloc</code> takes a size in bytes, allocates storage for that many bytes of memory at run time, and returns a pointer pointing to the first byte of the allocate memory. On failure it returns a <code>nil</code> value. The function <code>calloc</code> clears our the allocted memory region by writing the value <code>0</code> to it.
+</p>
+
+<pre class="grammar">
+alloc(size)
+calloc(size)
+</pre>
+
+<p>
+For instance
+</p>
+
+<pre class="code">
+ptr x, y : generic
+
+x = alloc(1024)
+if x == nil
+	print("Error allocating memory")
+
+y = calloc(1024)
+if y == nil
+	print("Error allocating memory")
+</pre>
+
+
+<h3 id="Memory_deallocation">Memory Deallocation</h3>
+
+<p>
+The built-in function <code>free</code> takes a pointer to start of memory region previously allocated using <code>new</code>, <code>alloc</code> or <code>calloc</code> and free's it and returns it back to the operating system.
+</p>
+
+<p>
+If the pointer is <code>nil</code> then no action is taken.
+</p>
+
+<p>
+For instance
+</p>
+
+<pre class="code">
+free(x)
+free(y)
+</pre>
+
+<h3 id="Bootstrapping">Bootstrapping</h3>
+
+<p>
+Current implementations provide several built-in functions useful during bootstrapping. These functions are documented for completeness but are not guaranteed to stay in the language. They do not return a result.
+</p>
+
+<pre class="grammar">
+Function   Behavior
+
+print      prints all arguments; formatting of arguments is implementation-specific
+println    like print but prints spaces between arguments and a newline at the end
+</pre>
+
+<h2 id="Modules">Modules</h2>
+
+<p>
+Carbon programs are constructed by linking together <i>modules</i>. A module in turn is constructed from one or more source files that together declare constants, types, variables and functions belonging to the module and which are accessible in all files of the same package. Those elements may be <a href="#Exported_identifiers">exported</a> and used in another module.
+</p>
+
+<h3 id="Source_file_organization">Source file organization</h3>
+
+<p>
+Each source file consists of a optinal module clause defining the module to which it belongs, followed by a possibly empty set of require declarations that declare module whose contents it wishes to use,
+followed by a possibly empty set of declarations of functions, types, variables, and constants.
+</p>
+
+<pre class="ebnf">
+<a id="SourceFile">SourceFile</a> = [ <a href="#ModuleClause" class="noline">ModuleClause</a> ] ";" { <a href="#RequireDecl" class="noline">RequireDecl</a> ";" } { <a href="#TopLevelDecl" class="noline">TopLevelDecl</a> ";" }
+</pre>
+
+<h3 id="Module_clause">Module clause</h3>
+
+<p>
+A module clause begins each source file and defines the module to which the file belongs.
+</p>
+
+<pre class="ebnf">
+<a id="ModuleClause">ModuleClause</a> = "module" <a href="#ModuleName" class="noline">ModuleName</a>
+<a id="ModuleName">ModuleName</a>   = <a href="#identifier" class="noline">identifier</a> [ "." <a href="#ModuleName" class="noline">ModuleName</a> ]
+</pre>
+
+<p>
+The ModuleName must not be the <a href="#Blank_identifier">blank identifier</a>.
+</p>
+
+<pre class="code">
+module math
+module gui.widgets.buttons
+</pre>
+
+<p>
+A set of files sharing the same ModuleName form the implementation of a module. An implementation does not require that all source files for a module inhabit the same directory.
+</p>
+
+<h3 id="Require_declarations">Require declarations</h3>
+
+<p>
+An require declaration states that the source file containing the declaration depends on functionality of the <i>imported</i> module or source file (<a href="#Program_initialization_and_execution">Program initialization and execution</a>) and enables access to <a href="#Exported_identifiers">exported</a> identifiers of that module or source file. The require names an RequirePath that specifies the module or source file to be imported.
+</p>
+
+<pre class="ebnf">
+<a id="RequireDecl">RequireDecl</a> = "require" <a href="#RequireSpec" class="noline">RequireSpec</a>
+<a id="RequireSpec">RequireSpec</a> = <a href="#RequirePath" class="noline">RequirePath</a>
+<a id="RequirePath">RequirePath</a> = <a href="#string_lit" class="noline">string_lit</a>
+</pre>
+
+<p>
+The ModuleName is used in <a href="#Qualified_identifiers">qualified identifiers</a> to access public or protected identifiers of the module within the importing source file.
+</p>
+
+<p>
+Implementation restriction: A compiler may restrict RequirePaths to non-empty strings using only characters belonging to <a href="http://www.unicode.org/versions/Unicode6.3.0/">Unicode's</a> L, M, N, P, and S general categories (the Graphic characters without spaces) and may also exclude the characters <code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code> and the Unicode replacement character U+FFFD.
+</p>
+
+<p>
+Assume we have compiled a module containing the module clause <code>module math</code>, which exports function <code>sin</code>, and installed the compiled package in the file identified by <code>"lib/math"</code>. The location of the source file containing the <code>sin</code> function is "lib/math/trigonometry.cb". This example illustrates how <code>sin</code> is accessed in files that import the module after the various types of require declaration.
+</p>
+
+<pre class="grammar">
+require "lib/math" 			// pre compiled module
+require "lib/math/trigonometry.cb" 	// source file
+</pre>
+
+<p>
+It is illegal for a module to import itself, directly or indirectly.
+</p>
+
+<h3 id="Use_statement">Use directive</h3>
+
+<p>
+The use directive is used to either create an alias for a module or a type.
+</p>
+
+<pre class="ebnf">
+<a id="UseDrtv">UseDrtv</a> = "use" [ <a href="#identifier" class="noline">identifier</a> "=" ] ( <a href="#ModuleName" class="noline">ModuleName</a> | <a href="#Type" class="noline">Type</a> )
+</pre>
+
+<p>
+If the alias identifier is not specified in the use directive then all the public functions and idenfiiers wihtin the module can be used without qualifying it.
+</p>
+
+<p>
+The scope of a use directive is limited to the block, module or file in which it appears.
+</p>
+
+<pre class="grammar">
+use math = lib/gen/math  // module alias
+math.calc()              // instead of lib.gen.math.calc()
+
+use integer = int        // type alias
+
+use lib/gen/math         // module
+calc()                   // instead of lib.gen.math.calc()
+</pre>
+
+
+<h3 id="An_example_module">An example program</h3>
+
+Here is a complete Carbon program.
+
+<pre class="grammar">
+module main
+
+require "log"
+
+def main() -> (int)
+	log.msg("Hello world")
+</pre>
+
+<h2 id="Program_initialization_and_execution">Program initialization and execution</h2>
+
+<h3 id="Module_initialization">Module initialization</h3>
+
+<p>
+Within a module, module-level variables are initialized in <i>declaration order</i> but after any of the variables they <i>depend</i> on.
+</p>
+
+<p>
+More precisely, a module-level variable is considered <i>ready for initialization</i> if it is not yet initialized and either has no <a href="#Variable_declarations">initialization expression</a> or its initialization expression has no dependencies on uninitialized variables. Initialization proceeds by repeatedly initializing the next module-level variable that is earliest in declaration order and ready for initialization, until there are no variables ready for initialization.
+</p>
+
+<p>
+If any variables are still uninitialized when this process ends, those variables are part of one or more initialization cycles, and the program is not valid.
+</p>
+
+<p>
+The declaration order of variables declared in multiple files is determined by the order in which the files are presented to the compiler: Variables declared in the first file are declared before any of the variables declared in the second file, and so on.
+</p>
+
+<p>
+Dependency analysis does not rely on the actual values of the variables, only on lexical <i>references</i> to them in the source, analyzed transitively. For instance, if a variable <code>x</code>'s initialization expression refers to a function whose body refers to variable <code>y</code> then <code>x</code> depends on <code>y</code>.
+Specifically:
+</p>
+
+<ul>
+<li>
+A reference to a variable or function is an identifier denoting that variable or function.
+</li>
+
+<li>
+A variable or function <code>x</code> depends on a variable <code>y</code> if <code>x</code>'s initialization expression or body (for functions and methods) contains a reference to <code>y</code> or to a function or method that depends on <code>y</code>.
+</li>
+</ul>
+
+<p>
+Dependency analysis is performed per module; only references referring to variables or functions declared in the current module are considered.
+</p>
+
+<p>
+For example, given the declarations
+</p>
+
+<pre class="code">
+int a = c + b
+int b = f()
+int c = f()
+int d = 3
+
+def f() -> (int)
+	d++
+	return d
+</pre>
+
+<p>
+the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
+</p>
+
+<p>
+Variables may also be initialized using functions named <code>init</code> declared in the module block, with no arguments and no result parameters.
+</p>
+
+<pre class="code">
+def init() { … }
+</pre>
+
+<p>
+Multiple such functions may be defined per module, even within a single source file. In the module block, the <code>init</code> identifier can be used only to declare <code>init</code> functions, yet the identifier itself is not <a href="#Declarations">declared</a>. Thus <code>init</code> functions cannot be referred to from anywhere in a program.
+</p>
+
+<p>
+A module with no imports is initialized by assigning initial values to all its module-level variables followed by calling all <code>init</code> functions in the order they appear in the source, possibly in multiple files, as presented to the compiler. If a module has imports, the imported packages are initialized before initializing the module itself. If multiple module import a module, the imported module will be initialized only once. The importing of modules, by construction, guarantees that there can be no cyclic initialization dependencies.
+</p>
+
+<p>
+Module initialization&mdash;variable initialization and the invocation of <code>init</code> functions&mdash;happens in a sequentially, one module at a time. However, initialization always sequences the <code>init</code> functions: it will not invoke the next one until the previous one has returned.
+</p>
+
+<p>
+To ensure reproducible initialization behavior, build systems are encouraged to present multiple files belonging to the same package in lexical file name order to a compiler.
+</p>
+
+<h3 id="Program_execution">Program execution</h3>
+<p>
+A complete program is created by linking a single, unimported module called the <i>main module</i> with all the modules it imports, transitively. The main module must have module name <code>main</code> and
+declare a function <code>main</code> that takes no arguments and returns no value.
+</p>
+
+<pre class="code">
+def main() { … }
+</pre>
+
+<p>
+Program execution begins by initializing the main module and then invoking the function <code>main</code>. When that function invocation returns, the program exits.
+</p>
+
+<h2 id="Errors">Errors ???</h2>
+
+<p>
+The predeclared type <code>error</code> is defined as
+</p>
+
+<pre class="code">
+type error interface {
+	Error() string
+}
+</pre>
+
+<p>
+It is the conventional interface for representing an error condition,
+with the nil value representing no error.
+For instance, a function to read data from a file might be defined:
+</p>
+
+<pre class="code">
+func Read(f *File, b []byte) (n int, err error)
+</pre>
+
+<h2 id="Run_time_panics">Run-time panics ???</h2>
+
+<p>
+Execution errors such as attempting to index an array out
+of bounds trigger a <i>run-time panic</i> equivalent to a call of
+the built-in function <a href="#Handling_panics"><code>panic</code></a>
+with a value of the implementation-defined interface type <code>runtime.Error</code>.
+That type satisfies the predeclared interface type
+<a href="#Errors"><code>error</code></a>.
+The exact error values that
+represent distinct run-time error conditions are unspecified.
+</p>
+
+<pre class="code">
+package runtime
+
+type Error interface {
+	error
+	// and perhaps other methods
+}
+</pre>
+
+<h2 id="System_considerations">System considerations</h2>
+
+<h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
+
+<p>
+For the <a href="#Numeric_types">numeric types</a>, the following sizes are guaranteed:
+</p>
+
+<pre class="grammar">
+type                                 size in bytes
+
+byte, uint8, int8                     1
+uint16, int16                         2
+uint32, int32, float32                4
+uint64, int64, float64                8
+</pre>
+
+<p>
+A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
+</p>
+
+<hr />
+<div id="footer">
+The content of this page is licensed under the
+Creative Commons Attribution 3.0 License,
+and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
+<a href="#">Terms of Service</a> |
+<a href="#">Privacy Policy</a>
+</div>
+
+<script>
+// When the user scrolls down 20px from the top of the document, show the button
+window.onscroll = function() {scrollFunction()};
+
+function scrollFunction() {
+    if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+        document.getElementById("topBtn").style.display = "block";
+    } else {
+        document.getElementById("topBtn").style.display = "none";
+    }
+}
+
+// When the user clicks on the button, scroll to the top of the document
+function topFunction() {
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+}
+</script>
+
+</body>
+
+</html>
+
