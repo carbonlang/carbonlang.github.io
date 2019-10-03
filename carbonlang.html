@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/showdown/0.3.1/showdown.min.js"></script>
+    <style>
+        body {
+            white-space: pre;
+            font-family: Consolas, monospace;
+            font-size: 15px;
+            margin: 20px;
+        }
+        h1 {
+            font-size: 20px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+        }
+        p {
+            margin-top: 0px;
+            margin-bottom: 0px;
+        }
+    </style>
+</head>
+<body>
+<div data-markdown>
+
+# CARBON PROGRAMMING LANGUAGE
+
+# Notation
+
+Production  = production_name "=" [ Expression ]
+Expression  = Alternative { "|" Alternative }
+Alternative = Term { Term }
+Term        = production_name | token [ "..." token ] | Group | Option | Repetition
+Group       = "(" Expression ")"
+Option      = "[" Expression "]"
+Repetition  = "{" Expression "}"
+
+# Source file
+
+SourceFile = { ImportDecl } { TypeDecl | ModuleDefn | FunctionDefn }
+
+# Digits (ok)
+
+DecimalDigit = "0" ... "9"
+BinaryDigit  = "0" | "1"
+OctalDigit   = "0" ... "7"
+HexDigit     = "0" ... "9" | "A" ... "F" | "a" ... "f"
+
+# Letters (ok)
+
+Letter       = { "A" ... "Z" | "a" ... "z" | "_" }
+LittleUValue = "\u" HexDigit HexDigit HexDigit HexDigit
+BigUValue    = "\U" HexDigit HexDigit HexDigit HexDigit
+                    HexDigit HexDigit HexDigit HexDigit
+EscapeChar   = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | '\' | "'" | '"' )
+PrintableASCIIChar = \* Any printable ASCII character *\
+
+# Identifiers (ok)
+
+Identifier     = Letter { Letter | DecimalDigit }
+IdentifierList = Identifier { "," Identifier }
+ModuleName     = Identifier { "." Identifier }
+QualifiedIdent = ModuleName "." Identifier
+
+# Integer literals (ok)
+
+IntLit     = DecimalLit | BinaryLit | OctalLit | HexLit
+DecimalLit = [ "10x" ] DecimalDigit { DecimalDigit }
+BinaryLit  = "2x" BinaryDigit { BinaryDigit }
+OctalLit   = "8x" OctalDigit { OctalDigit }
+HexLit     = "16x" HexDigit { HexDigit }
+
+# Floating-point literals (ok)
+
+FloatLit = Decimals "." [ Decimals ] [ Exponent ] |
+           Decimals Exponent |
+           "." Decimals [ Exponent ]
+Decimals = DecimalDigit { DecimalDigit }
+Exponent = ( "e" | "E" ) [ "+" | "-" ] Decimals
+
+# Imaginary literals (ok)
+
+ImaginaryLit = ( Decimals | FloatLit ) "i"
+
+# Char literals (ok)
+
+CharLit = "'" ( PrintableASCIIChar | EscapeChar ) "'" | "0" ... "255"
+
+# String literals
+
+StringLit          = RawStringLit | InterStringLit |
+                     RawHeredocStrLit | InterHeredocStrLit
+RawStringLit       = "r'" { String } "'" | 'r"' { String } '"'
+InterStringLit     = "'" { String } "'" | '"' { String } '"'
+RawHeredocStrLit   = "r'''" { String } "'''" | 'r"""' { String } '"""'
+InterHeredocStrLit = '"""' { String } '"""' | "'''" { String } "'''"
+String             = { PrintableASCIIChar | LittleUValue | BigUValue | EscapeChar } ???
+FormatSpecifier    = 
+
+# Types
+
+Type          = [ StorageClass ] [ TypeQualifier ] TypeName [ : Type ]
+StorageClass  = "register" | "static"
+TypeQualifier = "const" | "volatile" | "restrict" | "atomic" | "const" "restrict"
+TypeName      = BoolType | CharType | NumericType | PointerType |
+                ArrayType | StructType | UnionType | EnumType | OptionType | TuppleType | FunctionType
+
+# Boolean type
+
+BoolType = "bool"
+
+# Character type
+
+CharType = "char"
+
+# Numeric type
+
+NumericType = "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
+              "uint" | "uint8" | "uint16" | "uint32" | "uint64" |
+              "float32" | "float64" | "float128"
+
+# Pointer type
+
+PointerType = "ptr"
+
+# Array type
+
+ArrayType   = TypeName "[" ArrayLength "]"
+ArrayLength = Expression
+
+# Struct type
+
+StructType = Identifier
+
+# Union type
+
+UnionType = Identifier
+
+# Enumeration type
+
+enumType  = Identifier
+
+# Option type
+
+optionType  = Identifier
+
+# Tupple type
+
+TuppleType = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
+
+# Function type
+
+FunctionType      = FuncSignature
+FuncSignature     = FuncParameterList [ "->" FuncResultList ]
+FuncParameterList = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
+FuncResultList    = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
+
+# Type declaration
+
+TypeDecl = StructDecl | UnionDecl | EnumDecl | OptionDecl
+
+# Struct declaration
+
+StructDecl = "type struct" FieldDecl
+FieldDecl  = "{" "}" | Type IdentifierList
+
+# Union declaration
+
+UnionDecl = "type union" FieldDecl
+FieldDecl = "{" "}" | Type IdentifierList
+
+# Enumeration declaration
+
+EnumDecl  = "type enum" FieldDecl
+FieldDecl = "{" "}" | { Identifier }
+
+# Option declaration
+
+OptionDecl  = "type option" FieldDecl
+FieldDecl = "{" "}" | { Type Identifier }
+
+# Type definition
+
+TypeDefn = Type IdentifierList
+
+# Function definition
+
+FunctionDefn = "def" FunctionName FunctionType FunctionBody
+FunctionName = Identifier
+FunctionBody = Block
+
+# Operators ?? = / ++ / --
+
+expression = unary_expr | expression binary_op expression .
+unary_expr = primary_expr | unary_op unary_expr .
+
+binary_op  = arith_op | rel_op | shift_op | logical_op | bit_op .
+arith_op   = "+" | "-" | "*" | "/" | "%" .
+rel_op     = "==" | "!=" | "<" | "<=" | ">" | ">=" .
+shift_op   = ">>" | "<<" .
+logical_op = "||" | "&&" .
+bit_op     = "&" | "|" | "^" | "&^" .
+unary_op   = "+" | "-" | "!" | "~" | "*" | "@" .
+
+# Statements
+
+Statement =	Declaration | LabelStmt |
+            EmptyStmt | ExpressionStmt | IncDecStmt | Assignment |
+            ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+            Block | IfStmt | SwitchStmt | ForStmt |
+            DeferStmt .
+
+# Empty statements
+
+EmptyStmt = .
+
+# Labeled statements
+
+LabelStmt = Label ":" Statement .
+Label     = Identifier .
+
+# Expression statements
+
+ExpressionStmt = Expression .
+
+# IncDec statements
+
+IncDecStmt = Expression ( "++" | "--" ) .
+
+# Assignments
+
+Assignment = ExpressionList AssignOp ExpressionList .
+AssignOp = [ AddOp | MulOp ] "=" .
+
+# If statements
+
+IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ] .
+
+# Switch statements
+
+SwitchStmt = "switch" [ Expression ] CaseClause .
+CaseClause = SwitchCase ":" StatementList .
+SwitchCase = "case" ExpressionList | "default" .
+
+# For statements
+
+ForStmt   = "for" ForClause Block .
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
+InitStmt  = SimpleStmt .
+Condition = Expression .
+PostStmt  = SimpleStmt . <<<<
+
+# While statements
+
+WhileStmt = "while" Condition Block .
+Condition = Expression .
+
+# Do-while statements
+
+DoWhileStmt = "do" Block "while" Condition .
+Condition   = Expression .
+
+# Return statements
+
+ReturnStmt = "return" [ ExpressionList ] .
+
+# Break statements
+
+BreakStmt = "break" [ Label ] .
+
+# Continue statements
+
+ContinueStmt = "continue" [ Label ] .
+
+# Goto statements
+
+GotoStmt = "goto" Label .
+
+# Defer statements
+
+DeferStmt = "defer" Expression .
+
+# Built-in functions
+
+<<<
+
+# Modules declaration
+
+ModuleDefn = "module" ModuleName ModuleBody
+ModuleName = identifier { "::" identifier }
+ModuleBody = Declaration | Function
+
+# Generics
+
+<<<
+
+# Import declarations
+
+ImportDecl = "import" [ ModuleName "from" ] ImportPath [ "as" import ] .
+ImportPath = string_lit .
+
+
+# TODO
+
+Generics
+Attributes
+Access modifiers
+Operator overloading
+Struct ... methods
+Type methods
+Variable arguments
+nil
+Safe navigation operator
+Nullable types
+
+</div>
+<script type="text/javascript">
+    window.onload=function(){
+        // this function is the reverse version of escapeHTML found at 
+        // https://github.com/evilstreak/markdown-js/blob/master/src/render_tree.js
+        function unescapeHTML( text ) {
+            return text.replace( /&amp;/g, "&" )
+                       .replace( /&lt;/g, "<" )
+                       .replace( /&gt;/g, ">" )
+                       .replace( /&quot;/g, "\"" )
+                       .replace( /&#39;/g, "'" );
+          }
+        // based on https://gist.github.com/paulirish/1343518
+        (function(){
+            [].forEach.call( document.querySelectorAll('[data-markdown]'), function fn(elem){
+                elem.innerHTML = (new Showdown.converter()).makeHtml(unescapeHTML(elem.innerHTML));
+            });
+        }());
+    }
+</script>
+</body>
+</html>
