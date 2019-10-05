@@ -190,96 +190,118 @@ FunctionDefn = "def" FunctionName FunctionType FunctionBody
 FunctionName = Identifier
 FunctionBody = Block
 
-# Operators ?? = / ++ / --
+# Operators
 
-expression = unary_expr | expression binary_op expression .
-unary_expr = primary_expr | unary_op unary_expr .
+Expression = UnaryExpr | BinaryExpr
+BinaryExpr = Expression BinaryOp Expression
+UnaryExpr  = PrimaryExpr | UnaryOp UnaryExpr
 
-binary_op  = arith_op | rel_op | shift_op | logical_op | bit_op .
-arith_op   = "+" | "-" | "*" | "/" | "%" .
-rel_op     = "==" | "!=" | "<" | "<=" | ">" | ">=" .
-shift_op   = ">>" | "<<" .
-logical_op = "||" | "&&" .
-bit_op     = "&" | "|" | "^" | "&^" .
-unary_op   = "+" | "-" | "!" | "~" | "*" | "@" .
+BinaryOp  = ArithOp | RelOp | ShiftOp | LogicalOp | BitOp | AssigOp
+ArithOp   = "+" | "-" | "*" | "/" | "%"
+RelOp     = "==" | "!=" | "<" | "<=" | ">" | ">="
+ShiftOp   = ">>" | "<<" | ">>>" | "<<<"
+LogicalOp = "||" | "&&"
+BitOp     = "&" | "|" | "^" | "&^"
+UnaryOp   = "+" | "-" | "!" | "~" | "*" | "@"
+
+# Primary expressions
+
+Primary expressions are the operands for unary and binary expressions.
+
+PrimaryExpr = Operand |	MethodExpr | PrimaryExpr Selector |	PrimaryExpr Index |	PrimaryExpr Arguments
+
+Operand     = Literal | OperandName | "(" Expression ")" .
+Literal     = BasicLit | CompositeLit | FunctionLit .
+BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+OperandName = identifier | QualifiedIdent.
+
+MethodExpr  = ReceiverType "." MethodName
+Selector    = "." Identifier
+Index       = "[" Expression "]"
+Arguments   = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")"
 
 # Statements
 
-Statement =	Declaration | LabelStmt |
-            EmptyStmt | ExpressionStmt | IncDecStmt | Assignment |
-            ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
-            Block | IfStmt | SwitchStmt | ForStmt |
-            DeferStmt .
+Block = { Statement [ ";" ] }
+
+Statement =	Declaration |
+            SimpleStmt |
+            ReturnStmt | BreakStmt | ContinueStmt | GotoStmt | LabelStmt |
+            IfStmt | SwitchStmt | ForStmt | WhileStmt | DoWhileStmt |
+            Block |
+            DeferStmt
+
+SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | AssignStmt
 
 # Empty statements
 
-EmptyStmt = .
+EmptyStmt = ""
 
-# Labeled statements
+# Label statement  (ok)
 
-LabelStmt = Label ":" Statement .
-Label     = Identifier .
+LabelStmt = Label ":" Statement
+Label     = Identifier
 
-# Expression statements
+# Expression statement
 
-ExpressionStmt = Expression .
+ExpressionStmt = Expression
 
-# IncDec statements
+# Increment decrement statement  (ok)
 
-IncDecStmt = Expression ( "++" | "--" ) .
+IncDecStmt = Expression ( "++" | "--" )
 
-# Assignments
+# Assignment statement  (ok)
 
-Assignment = ExpressionList AssignOp ExpressionList .
-AssignOp = [ AddOp | MulOp ] "=" .
+AssignStmt = IdentifierList AssignOp ExpressionList
+AssignOp   = [ ArithOp | ShiftOp | LogicalOp ] "="
 
-# If statements
+# If statement (ok)
 
 IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ] .
 
-# Switch statements
+# Switch statement  (ok)
 
 SwitchStmt = "switch" [ Expression ] CaseClause .
 CaseClause = SwitchCase ":" StatementList .
 SwitchCase = "case" ExpressionList | "default" .
 
-# For statements
+# For statement  (ok)
 
-ForStmt   = "for" ForClause Block .
-ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
-InitStmt  = SimpleStmt .
-Condition = Expression .
-PostStmt  = SimpleStmt . <<<<
+ForStmt   = "for" ForClause Block
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ]
+InitStmt  = SimpleStmt
+Condition = Expression
+PostStmt  = SimpleStmt
 
-# While statements
+# While statement (ok)
 
-WhileStmt = "while" Condition Block .
-Condition = Expression .
+WhileStmt = "while" Condition Block
+Condition = Expression
 
-# Do-while statements
+# Do-while statement (ok)
 
-DoWhileStmt = "do" Block "while" Condition .
-Condition   = Expression .
+DoWhileStmt = "do" Block "while" Condition
+Condition   = Expression
 
-# Return statements
+# Return statement (ok)
 
-ReturnStmt = "return" [ ExpressionList ] .
+ReturnStmt = "return" [ ExpressionList ]
 
-# Break statements
+# Break statement (ok)
 
-BreakStmt = "break" [ Label ] .
+BreakStmt = "break" [ Label ]
 
-# Continue statements
+# Continue statement (ok)
 
-ContinueStmt = "continue" [ Label ] .
+ContinueStmt = "continue" [ Label ]
 
-# Goto statements
+# Goto statement (ok)
 
-GotoStmt = "goto" Label .
+GotoStmt = "goto" Label
 
-# Defer statements
+# Defer statement (ok)
 
-DeferStmt = "defer" Expression .
+DeferStmt = "defer" Block
 
 # Built-in functions
 
