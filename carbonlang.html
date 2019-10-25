@@ -36,9 +36,9 @@ Group       = "(" Expression ")"
 Option      = "[" Expression "]"
 Repetition  = "{" Expression "}"
 
-# Source file
+# Source file (ok)
 
-SourceFile = { ImportDecl } { TypeDecl | ModuleDefn | FunctionDefn }
+SourceFile = { ImportDecl } { TypeDefn | ModuleDefn | FunctionDefn }
 
 # Digits (ok)
 
@@ -56,12 +56,13 @@ BigUValue    = "\U" HexDigit HexDigit HexDigit HexDigit
 EscapeChar   = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | '\' | "'" | '"' )
 PrintableASCIIChar = \* Any printable ASCII character *\
 
-# Identifiers (ok)
+# Identifiers
 
 Identifier     = Letter { Letter | DecimalDigit }
 IdentifierList = Identifier { "," Identifier }
 ModuleName     = Identifier { "." Identifier }
 QualifiedIdent = ModuleName "." Identifier
+ExpressionList = Expression { "," Expression }
 
 # Integer literals (ok)
 
@@ -87,7 +88,7 @@ ImaginaryLit = ( Decimals | FloatLit ) "i"
 
 CharLit = "'" ( PrintableASCIIChar | EscapeChar ) "'" | "0" ... "255"
 
-# String literals
+# String literals (ok)
 
 StringLit          = RawStringLit | InterStringLit |
                      RawHeredocStrLit | InterHeredocStrLit
@@ -98,103 +99,126 @@ InterHeredocStrLit = '"""' { String } '"""' | "'''" { String } "'''"
 String             = { PrintableASCIIChar | LittleUValue | BigUValue | EscapeChar } ???
 FormatSpecifier    = 
 
-# Types
+# Function Literal (Anonymous function)
 
-Type          = [ StorageClass ] [ TypeQualifier ] TypeName [ : Type ]
+FunctionLit = "def" FuncSignature FunctionBody
+
+# Composite Literal
+
+CompositeLit  = LiteralType LiteralValue
+LiteralType   = StructType | UnionType | EnumType | OptionType
+LiteralValue  = "{" [ ElementList [ "," ] ] "}"
+ElementList   = KeyedElement { "," KeyedElement }
+KeyedElement  = [ Key ":" ] Element
+Key           = FieldName | Expression | LiteralValue
+FieldName     = Identifier
+Element       = Expression | LiteralValue
+
+# Tuple literal ??
+
+TupleLit = 
+
+# Types (ok)
+
+Type          = [ StorageClass ] [ TypeQualifier ] TypeName
 StorageClass  = "register" | "static"
 TypeQualifier = "const" | "volatile" | "restrict" | "atomic" | "const" "restrict"
-TypeName      = BoolType | CharType | NumericType | PointerType |
+TypeName      = BoolType | CharType | NumericType | TypeAliasName | PointerType |
                 ArrayType | StructType | UnionType | EnumType | OptionType | TuppleType | FunctionType
 
-# Boolean type
+# Boolean type (ok)
 
 BoolType = "bool"
 
-# Character type
+# Character type (ok)
 
 CharType = "char"
 
-# Numeric type
+# Numeric type (ok)
 
 NumericType = "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
               "uint" | "uint8" | "uint16" | "uint32" | "uint64" |
               "float32" | "float64" | "float128"
 
-# Pointer type
+# Pointer type (ok)
 
-PointerType = "ptr"
+PointerType = "ptr" : Type
 
-# Array type
+# Array type (ok)
 
-ArrayType   = TypeName "[" ArrayLength "]"
-ArrayLength = Expression
+ArrayType    = ArraySimple | ArrayPointer
+ArraySimple  = TypeName "[" ArrayLength "]"
+ArrayPointer = "ptr" "[" ArrayLength "]" : Type
+ArrayLength  = Expression
 
-# Struct type
+# Struct type (ok)
 
 StructType = Identifier
 
-# Union type
+# Union type (ok)
 
 UnionType = Identifier
 
-# Enumeration type
+# Enumeration type (ok)
 
-enumType  = Identifier
+EnumType  = Identifier
 
-# Option type
+# Option type (ok)
 
-optionType  = Identifier
+OptionType  = Identifier
 
-# Tupple type
+# Tupple type (ok)
 
 TuppleType = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
 
-# Function type
+# Function type (ok)
 
 FunctionType      = FuncSignature
 FuncSignature     = FuncParameterList [ "->" FuncResultList ]
 FuncParameterList = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
 FuncResultList    = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
 
-# Type declaration
+# Type definition (ok)
 
-TypeDecl = StructDecl | UnionDecl | EnumDecl | OptionDecl
+TypeDefn = StructDefn | UnionDefn | EnumDefn | OptionDefn | TypeAlias
 
-# Struct declaration
+# Struct definition (ok)
 
-StructDecl = "type struct" FieldDecl
-FieldDecl  = "{" "}" | Type IdentifierList
+StructDefn = "type struct" FieldDecl
+FieldDecl  = "{" "}" | { Type IdentifierList }
 
-# Union declaration
+# Union definition (ok)
 
-UnionDecl = "type union" FieldDecl
-FieldDecl = "{" "}" | Type IdentifierList
+UnionDefn = "type union" FieldDecl
+FieldDecl = "{" "}" | { Type IdentifierList }
 
-# Enumeration declaration
+# Enumeration definition (ok)
 
-EnumDecl  = "type enum" FieldDecl
+EnumDefn  = "type enum" FieldDecl
 FieldDecl = "{" "}" | { Identifier }
 
-# Option declaration
+# Option definition (ok)
 
-OptionDecl  = "type option" FieldDecl
-FieldDecl = "{" "}" | { Type Identifier }
+OptionDefn = "type option" FieldDecl
+FieldDecl  = "{" "}" | { Type Identifier }
 
-# Type definition
-
-TypeDefn = Type IdentifierList
-
-# Function definition
+# Function definition (ok)
 
 FunctionDefn = "def" FunctionName FunctionType FunctionBody
 FunctionName = Identifier
 FunctionBody = Block
 
-# Operators
+# Type Alias
 
-Expression = UnaryExpr | BinaryExpr
-BinaryExpr = Expression BinaryOp Expression
-UnaryExpr  = PrimaryExpr | UnaryOp UnaryExpr
+TypeAlias     = TypeAliasName "=" Type
+TypeAliasName = Identifier
+
+# Expression (ok) - An expression specifies the computation of a value by applying operators and functions to operands.
+
+Expression  = UnaryOp OperandExpr | OperandExpr BinaryOp OperandExpr
+OperandExpr = Expression | PrimaryExpr
+
+# Operators (ok)
 
 BinaryOp  = ArithOp | RelOp | ShiftOp | LogicalOp | BitOp | AssigOp
 ArithOp   = "+" | "-" | "*" | "/" | "%"
@@ -204,84 +228,52 @@ LogicalOp = "||" | "&&"
 BitOp     = "&" | "|" | "^" | "&^"
 UnaryOp   = "+" | "-" | "!" | "~" | "*" | "@"
 
-# Primary expressions
+# Primary expressions (ok) - Primary expressions are the operands for unary and binary expressions.
 
-Primary expressions are the operands for unary and binary expressions.
+PrimaryExpr   = Operand | PrimaryExpr FieldSelector | PrimaryExpr Index | PrimaryExpr Call
+FieldSelector = "." Identifier
+Index         = "[" Expression "]"
+Call          = "(" [ ExpressionList ] ")"
 
-PrimaryExpr = Operand |	MethodExpr | PrimaryExpr Selector |	PrimaryExpr Index |	PrimaryExpr Arguments
+# Operands (ok) - Operands denote the elementary values in an expression.
 
-Operand     = Literal | OperandName | "(" Expression ")" .
-Literal     = BasicLit | CompositeLit | FunctionLit .
-BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
-OperandName = identifier | QualifiedIdent.
+Operand  = Literal | ConstVarFuncIdent | "(" Expression ")"
+Literal  = BasicLit | CompositeLit | FunctionLit
+BasicLit = IntLit | FloatLit | ImaginaryLit | CharLit | StringLit
+ConstVarFuncIdent = Identifier | QualifiedIdent
 
-MethodExpr  = ReceiverType "." MethodName
-Selector    = "." Identifier
-Index       = "[" Expression "]"
-Arguments   = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")"
+# Statements - Statements control execution.
 
-# Statements
+Block = { Statement [ ";" ] } | Block
 
-Block = { Statement [ ";" ] }
-
-Statement =	Declaration |
-            SimpleStmt |
-            ReturnStmt | BreakStmt | ContinueStmt | GotoStmt | LabelStmt |
+Statement =	TypeDefn | SimpleStmt |
+            ReturnStmt | BreakStmt | ContinueStmt | GotoStmt | LabelStmt | FallthroughStmt |
             IfStmt | SwitchStmt | ForStmt | WhileStmt | DoWhileStmt |
-            Block |
             DeferStmt
 
-SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | AssignStmt
+SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | AssignStmt | VarDecl
 
-# Empty statements
+# Empty statements (ok)
 
 EmptyStmt = ""
-
-# Label statement  (ok)
-
-LabelStmt = Label ":" Statement
-Label     = Identifier
 
 # Expression statement
 
 ExpressionStmt = Expression
 
-# Increment decrement statement  (ok)
+# Increment decrement statement (ok)
 
 IncDecStmt = Expression ( "++" | "--" )
 
-# Assignment statement  (ok)
+# Assignment statement (ok)
 
 AssignStmt = IdentifierList AssignOp ExpressionList
 AssignOp   = [ ArithOp | ShiftOp | LogicalOp ] "="
 
-# If statement (ok)
+# Variable declaration (ok)
 
-IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ] .
-
-# Switch statement  (ok)
-
-SwitchStmt = "switch" [ Expression ] CaseClause .
-CaseClause = SwitchCase ":" StatementList .
-SwitchCase = "case" ExpressionList | "default" .
-
-# For statement  (ok)
-
-ForStmt   = "for" ForClause Block
-ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ]
-InitStmt  = SimpleStmt
-Condition = Expression
-PostStmt  = SimpleStmt
-
-# While statement (ok)
-
-WhileStmt = "while" Condition Block
-Condition = Expression
-
-# Do-while statement (ok)
-
-DoWhileStmt = "do" Block "while" Condition
-Condition   = Expression
+VarDecl     = Type VarDeclList
+VarDeclList = Identifier [ "=" Expression ] { [ "," ] Identifier [ "=" Expression ] }
 
 # Return statement (ok)
 
@@ -299,28 +291,57 @@ ContinueStmt = "continue" [ Label ]
 
 GotoStmt = "goto" Label
 
+# Label statement (ok)
+
+LabelStmt = Label ":" Statement
+Label     = Identifier
+
+# Fallthrough statement (ok)
+
+FallthroughStmt = "fallthrough"
+
+# If statement (ok)
+
+IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ]
+
+# Switch statement (ok)
+
+SwitchStmt = "switch" [ Expression ] CaseClause
+CaseClause = SwitchCase ":" Block
+SwitchCase = "case" ExpressionList | "default"
+
+# For statement (ok)
+
+ForStmt   = "for" ForClause Block
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ]
+InitStmt  = SimpleStmt
+Condition = Expression
+PostStmt  = SimpleStmt
+
+# While statement (ok)
+
+WhileStmt = "while" Condition Block
+Condition = Expression
+
+# Do-while statement (ok)
+
+DoWhileStmt = "do" Block "while" Condition
+Condition   = Expression
+
 # Defer statement (ok)
 
 DeferStmt = "defer" Block
 
-# Built-in functions
-
-<<<
-
-# Modules declaration
+# Modules declaration (ok)
 
 ModuleDefn = "module" ModuleName ModuleBody
-ModuleName = identifier { "::" identifier }
-ModuleBody = Declaration | Function
+ModuleName = Identifier { "." Identifier }
+ModuleBody = { TypeDefn | VarDecl | FunctionDefn }
 
-# Generics
+# Import declarations (ok)
 
-<<<
-
-# Import declarations
-
-ImportDecl = "import" [ ModuleName "from" ] ImportPath [ "as" import ] .
-ImportPath = string_lit .
+ImportDecl = "import" [ ModuleName "from" ] ImportPath [ "as" import ]
+ImportPath = string_lit
 
 
 # TODO
