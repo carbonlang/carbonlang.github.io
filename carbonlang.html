@@ -10,6 +10,11 @@
             margin-left: 20px;
         }
         h1 {
+            font-size: 30px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+        }
+        h2 {
             font-size: 20px;
             margin-top: 0px;
             margin-bottom: 0px;
@@ -18,14 +23,12 @@
             margin-top: 0px;
             margin-bottom: 0px;
         }
-        h1 {
-            font-size: 30px;
-        }
     </style>
 </head>
 <body>
 <h1>CARBON PROGRAMMING LANGUAGE</h1>
 <div data-markdown>
+
 # Notation
 
 Production  = production_name "=" [ Expression ]
@@ -38,7 +41,7 @@ Repetition  = "{" Expression "}"
 
 # Source file (ok)
 
-SourceFile = { ImportDecl } { TypeDefn | ModuleDefn | FunctionDefn }
+SourceFile = { ImportDecl } { TypeDefn | TypeFunction | ModuleDefn | FunctionDefn }
 
 # Digits (ok)
 
@@ -64,7 +67,13 @@ ModuleName     = Identifier { "." Identifier }
 QualifiedIdent = ModuleName "." Identifier
 ExpressionList = Expression { "," Expression }
 
-# Integer literals (ok)
+# Literals
+
+## Boolean Literal
+
+BoolLit = "true" | "false"
+
+## Integer literals (ok)
 
 IntLit     = DecimalLit | BinaryLit | OctalLit | HexLit
 DecimalLit = [ "10x" ] DecimalDigit { DecimalDigit }
@@ -72,7 +81,7 @@ BinaryLit  = "2x" BinaryDigit { BinaryDigit }
 OctalLit   = "8x" OctalDigit { OctalDigit }
 HexLit     = "16x" HexDigit { HexDigit }
 
-# Floating-point literals (ok)
+## Floating-point literals (ok)
 
 FloatLit = Decimals "." [ Decimals ] [ Exponent ] |
            Decimals Exponent |
@@ -80,15 +89,15 @@ FloatLit = Decimals "." [ Decimals ] [ Exponent ] |
 Decimals = DecimalDigit { DecimalDigit }
 Exponent = ( "e" | "E" ) [ "+" | "-" ] Decimals
 
-# Imaginary literals (ok)
+## Imaginary literals (ok)
 
 ImaginaryLit = ( Decimals | FloatLit ) "i"
 
-# Char literals (ok)
+## Char literals (ok)
 
 CharLit = "'" ( PrintableASCIIChar | EscapeChar ) "'" | "0" ... "255"
 
-# String literals (ok)
+## String literals (ok)
 
 StringLit          = RawStringLit | InterStringLit |
                      RawHeredocStrLit | InterHeredocStrLit
@@ -96,14 +105,20 @@ RawStringLit       = "r'" { String } "'" | 'r"' { String } '"'
 InterStringLit     = "'" { String } "'" | '"' { String } '"'
 RawHeredocStrLit   = "r'''" { String } "'''" | 'r"""' { String } '"""'
 InterHeredocStrLit = '"""' { String } '"""' | "'''" { String } "'''"
-String             = { PrintableASCIIChar | LittleUValue | BigUValue | EscapeChar } ???
-FormatSpecifier    = 
+String             = { PrintableASCIIChar | LittleUValue | BigUValue | EscapeChar | FormatSpecifier }
+FormatSpecifier    = "% ( "v" | "T" | "t" | "b" | "c" | "d" | "o" | "O" | "q" | "x" | "X" | "U" | "b" | "e" |
+                     "E" | "f" | "F" | "g" | "G" | "x" | "X" | "s" | "q" | "p" )
+EscapeChar         = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `"` )
 
-# Function Literal (Anonymous function)
+## Pointer Literal
+
+PointerLit = "null" | HexLit | BinaryLit
+
+## Function Literal (Anonymous function) (ok)
 
 FunctionLit = "def" FuncSignature FunctionBody
 
-# Composite Literal
+## Composite Literal
 
 CompositeLit  = LiteralType LiteralValue
 LiteralType   = StructType | UnionType | EnumType | OptionType
@@ -114,9 +129,10 @@ Key           = FieldName | Expression | LiteralValue
 FieldName     = Identifier
 Element       = Expression | LiteralValue
 
-# Tuple literal ??
+## Tuple literal (ok)
 
-TupleLit = 
+TupleLit   = "(" TuppleItem { "," TuppleItem } ")"
+TuppleItem = FieldName | Expression | Literal
 
 # Types (ok)
 
@@ -126,191 +142,210 @@ TypeQualifier = "const" | "volatile" | "restrict" | "atomic" | "const" "restrict
 TypeName      = BoolType | CharType | NumericType | TypeAliasName | PointerType |
                 ArrayType | StructType | UnionType | EnumType | OptionType | TuppleType | FunctionType
 
-# Boolean type (ok)
+## Boolean type (ok)
 
 BoolType = "bool"
 
-# Character type (ok)
+## Character type (ok)
 
 CharType = "char"
 
-# Numeric type (ok)
+## Numeric type (ok)
 
 NumericType = "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
               "uint" | "uint8" | "uint16" | "uint32" | "uint64" |
               "float32" | "float64" | "float128"
 
-# Pointer type (ok)
+## Pointer type (ok)
 
 PointerType = "ptr" : Type
 
-# Array type (ok)
+## Array type (ok)
 
 ArrayType    = ArraySimple | ArrayPointer
 ArraySimple  = TypeName "[" ArrayLength "]"
 ArrayPointer = "ptr" "[" ArrayLength "]" : Type
 ArrayLength  = Expression
 
-# Struct type (ok)
+## Struct type (ok)
 
 StructType = Identifier
 
-# Union type (ok)
+## Union type (ok)
 
 UnionType = Identifier
 
-# Enumeration type (ok)
+## Enumeration type (ok)
 
 EnumType  = Identifier
 
-# Option type (ok)
+## Option type (ok)
 
 OptionType  = Identifier
 
-# Tupple type (ok)
+## Tupple type (ok)
 
 TuppleType = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
 
-# Function type (ok)
+## Function type (ok)
 
 FunctionType      = FuncSignature
 FuncSignature     = FuncParameterList [ "->" FuncResultList ]
-FuncParameterList = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
-FuncResultList    = "(" Type [ Identifier ] { "," Type [ Identifier ] } ")"
+FuncParameterList = "(" [ Type [ Identifier ] { "," Type [ Identifier ] } ] [ [ "," ] "..." ] ")"
+FuncResultList    = "(" [ Type [ Identifier ] { "," Type [ Identifier ] } ] ")"
 
 # Type definition (ok)
 
-TypeDefn = StructDefn | UnionDefn | EnumDefn | OptionDefn | TypeAlias
+TypeDefn = { Attribute } ( StructDefn | UnionDefn | EnumDefn | OptionDefn | TypeAlias )
 
-# Struct definition (ok)
+## Struct definition (ok)
 
 StructDefn = "type struct" FieldDecl
-FieldDecl  = "{" "}" | { Type IdentifierList }
+FieldDecl  = "{" "}" | { Type IdentifierList | FunctionDefn }
 
-# Union definition (ok)
+## Union definition (ok)
 
 UnionDefn = "type union" FieldDecl
-FieldDecl = "{" "}" | { Type IdentifierList }
+FieldDecl = "{" "}" | { Type IdentifierList | FunctionDefn }
 
-# Enumeration definition (ok)
+## Enumeration definition (ok)
 
 EnumDefn  = "type enum" FieldDecl
-FieldDecl = "{" "}" | { Identifier }
+FieldDecl = "{" "}" | { Identifier | FunctionDefn }
 
-# Option definition (ok)
+## Option definition (ok)
 
 OptionDefn = "type option" FieldDecl
-FieldDecl  = "{" "}" | { Type Identifier }
+FieldDecl  = "{" "}" | { Type Identifier | FunctionDefn }
 
-# Function definition (ok)
+## Function definition (ok)
 
-FunctionDefn = "def" FunctionName FunctionType FunctionBody
-FunctionName = Identifier
+FunctionDefn = { Attribute } [ AccessModifier ] "def" FunctionName FunctionType FunctionBody
+FunctionName = Identifier | BinaryOp | LUnaryOp | RUnaryOp
 FunctionBody = Block
+
+# Attributes
+
+Attribute     = "[" AttrName "(" AttrParamList ")" [ "," AttrName "(" AttrParamList ")" ] "]"
+AttrParamList = AttrPrmName [ "=" AttrPrmValue ] [ "," AttrPrmName [ "=" AttrPrmValue ] ]
+AttrName      = Identifier
+AttrPrmName   = Identifier
+AttrPrmValue  = IntLit | CharLit | StringLit
 
 # Type Alias
 
-TypeAlias     = TypeAliasName "=" Type
+TypeAlias     = TypeAliasName "=" [ Type | UserDefType ]
 TypeAliasName = Identifier
+UserDefType   = Identifier
 
-# Expression (ok) - An expression specifies the computation of a value by applying operators and functions to operands.
+# Expression (ok)
 
-Expression  = UnaryOp OperandExpr | OperandExpr BinaryOp OperandExpr
+_An expression specifies the computation of a value by applying operators and functions to operands._
+
+Expression  = LUnaryOp OperandExpr | OperandExpr RUnaryOp | OperandExpr BinaryOp OperandExpr
 OperandExpr = Expression | PrimaryExpr
 
-# Operators (ok)
+## Operators (ok)
 
-BinaryOp  = ArithOp | RelOp | ShiftOp | LogicalOp | BitOp | AssigOp
+BinaryOp  = ArithOp | RelOp | ShiftOp | LogicalOp | BitOp
 ArithOp   = "+" | "-" | "*" | "/" | "%"
 RelOp     = "==" | "!=" | "<" | "<=" | ">" | ">="
 ShiftOp   = ">>" | "<<" | ">>>" | "<<<"
 LogicalOp = "||" | "&&"
 BitOp     = "&" | "|" | "^" | "&^"
-UnaryOp   = "+" | "-" | "!" | "~" | "*" | "@"
+LUnaryOp  = "+" | "-" | "!" | "~" | "*" | "@"
+RUnaryOp  = "++" | "--"
 
-# Primary expressions (ok) - Primary expressions are the operands for unary and binary expressions.
+## Primary expressions (ok)
+
+_Primary expressions are the operands for unary and binary expressions._
 
 PrimaryExpr   = Operand | PrimaryExpr FieldSelector | PrimaryExpr Index | PrimaryExpr Call
 FieldSelector = "." Identifier
 Index         = "[" Expression "]"
 Call          = "(" [ ExpressionList ] ")"
 
-# Operands (ok) - Operands denote the elementary values in an expression.
+## Operands (ok)
+
+_Operands denote the elementary values in an expression._
 
 Operand  = Literal | ConstVarFuncIdent | "(" Expression ")"
 Literal  = BasicLit | CompositeLit | FunctionLit
-BasicLit = IntLit | FloatLit | ImaginaryLit | CharLit | StringLit
+BasicLit = BoolLit | IntLit | FloatLit | ImaginaryLit | CharLit | StringLit | PointerLit
 ConstVarFuncIdent = Identifier | QualifiedIdent
 
-# Statements - Statements control execution.
+# Statements (ok)
+
+_Statements control execution._
 
 Block = { Statement [ ";" ] } | Block
 
-Statement =	TypeDefn | SimpleStmt |
+Statement = TypeDefn | TypeFunction | SimpleStmt |
             ReturnStmt | BreakStmt | ContinueStmt | GotoStmt | LabelStmt | FallthroughStmt |
             IfStmt | SwitchStmt | ForStmt | WhileStmt | DoWhileStmt |
             DeferStmt
 
-SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | AssignStmt | VarDecl
+SimpleStmt = EmptyStmt | ExpressionStmt | AssignStmt | VarDecl
 
-# Empty statements (ok)
+## Empty statements (ok)
 
 EmptyStmt = ""
 
-# Expression statement
+## Expression statement (ok)
 
 ExpressionStmt = Expression
 
-# Increment decrement statement (ok)
+## Increment decrement statement (ok)
 
 IncDecStmt = Expression ( "++" | "--" )
 
-# Assignment statement (ok)
+## Assignment statement (ok)
 
 AssignStmt = IdentifierList AssignOp ExpressionList
 AssignOp   = [ ArithOp | ShiftOp | LogicalOp ] "="
 
-# Variable declaration (ok)
+## Variable declaration (ok)
 
-VarDecl     = Type VarDeclList
-VarDeclList = Identifier [ "=" Expression ] { [ "," ] Identifier [ "=" Expression ] }
+VarDecl        = [ AccessModifier ] Type VarDeclList
+AccessModifier = [ "public" | "private" ]
+VarDeclList    = Identifier [ "=" Expression ] { "," Identifier [ "=" Expression ] }
 
-# Return statement (ok)
+## Return statement (ok)
 
 ReturnStmt = "return" [ ExpressionList ]
 
-# Break statement (ok)
+## Break statement (ok)
 
 BreakStmt = "break" [ Label ]
 
-# Continue statement (ok)
+## Continue statement (ok)
 
 ContinueStmt = "continue" [ Label ]
 
-# Goto statement (ok)
+## Goto statement (ok)
 
 GotoStmt = "goto" Label
 
-# Label statement (ok)
+## Label statement (ok)
 
 LabelStmt = Label ":" Statement
 Label     = Identifier
 
-# Fallthrough statement (ok)
+## Fallthrough statement (ok)
 
 FallthroughStmt = "fallthrough"
 
-# If statement (ok)
+## If statement (ok)
 
 IfStmt = "if" Expression Block [ "else" ( IfStmt | Block ) ]
 
-# Switch statement (ok)
+## Switch statement (ok)
 
 SwitchStmt = "switch" [ Expression ] CaseClause
 CaseClause = SwitchCase ":" Block
 SwitchCase = "case" ExpressionList | "default"
 
-# For statement (ok)
+## For statement (ok)
 
 ForStmt   = "for" ForClause Block
 ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ]
@@ -318,25 +353,29 @@ InitStmt  = SimpleStmt
 Condition = Expression
 PostStmt  = SimpleStmt
 
-# While statement (ok)
+## While statement (ok)
 
 WhileStmt = "while" Condition Block
 Condition = Expression
 
-# Do-while statement (ok)
+## Do-while statement (ok)
 
 DoWhileStmt = "do" Block "while" Condition
 Condition   = Expression
 
-# Defer statement (ok)
+## Defer statement (ok)
 
 DeferStmt = "defer" Block
+
+# Type functions
+
+TypeFunction = "extend" TypeName FunctionDefn
 
 # Modules declaration (ok)
 
 ModuleDefn = "module" ModuleName ModuleBody
 ModuleName = Identifier { "." Identifier }
-ModuleBody = { TypeDefn | VarDecl | FunctionDefn }
+ModuleBody = { TypeDefn | TypeFunction | VarDecl | FunctionDefn }
 
 # Import declarations (ok)
 
@@ -347,15 +386,8 @@ ImportPath = string_lit
 # TODO
 
 Generics
-Attributes
-Access modifiers
-Operator overloading
-Struct ... methods
-Type methods
-Variable arguments
-nil
-Safe navigation operator
 Nullable types
+Safe navigation operator
 
 </div>
 <script type="text/javascript">
